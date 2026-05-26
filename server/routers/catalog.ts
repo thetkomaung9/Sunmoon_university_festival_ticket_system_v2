@@ -64,8 +64,7 @@ export const catalogRouter = router({
           });
         }
         const category =
-          demoCategories.find(item => item.id === demoEvent.categoryId) ??
-          null;
+          demoCategories.find(item => item.id === demoEvent.categoryId) ?? null;
         const ticketTypes = demoTicketTypes.filter(
           item => item.eventId === demoEvent.id
         );

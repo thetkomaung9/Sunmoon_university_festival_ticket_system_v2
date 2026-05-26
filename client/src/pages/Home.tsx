@@ -3,7 +3,14 @@ import SiteLayout from "@/components/SiteLayout";
 import { Button } from "@/components/ui/button";
 import { demoCategories, demoEvents } from "@/lib/demoCatalog";
 import { trpc } from "@/lib/trpc";
-import { ArrowRight, Calendar, ScanLine, ShieldCheck, Sparkles, Ticket } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  ScanLine,
+  ShieldCheck,
+  Sparkles,
+  Ticket,
+} from "lucide-react";
 import { Link } from "wouter";
 
 const HERO_IMG = "/categories/lanterns_f8e4aa28.jpg";
@@ -34,14 +41,17 @@ export default function Home() {
             </div>
             <h1 className="mt-5 font-serif text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.05]">
               Where Myanmar Culture
-              <span className="block text-[var(--sunmoon-gold)]">Lights Up the Campus.</span>
+              <span className="block text-[var(--sunmoon-gold)]">
+                Lights Up the Campus.
+              </span>
             </h1>
             <p className="mt-6 max-w-xl font-mm text-lg text-white/85 leading-relaxed">
-              ဆန်းမွန်တက္ကသိုလ် မြန်မာအသင်း၏ တရားဝင် ပွဲတော်လက်မှတ်ဝယ်ယူရာ စင်တာ။
+              ဆန်းမွန်တက္ကသိုလ် မြန်မာအသင်း၏ တရားဝင် ပွဲတော်လက်မှတ်ဝယ်ယူရာ
+              စင်တာ။
             </p>
             <p className="max-w-xl text-base text-white/70 leading-relaxed mt-2">
-              From Thadingyut Festival of Lights to Thingyan New Year — book your tickets, scan
-              your QR at the gate, and join the celebration.
+              From Thadingyut Festival of Lights to Thingyan New Year — book
+              your tickets, scan your QR at the gate, and join the celebration.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button
@@ -77,7 +87,9 @@ export default function Home() {
               { en: "QR Verified Tickets", mm: "လက်မှတ်အာမခံ" },
             ].map((stat, i) => (
               <div key={i} className="text-center md:text-left">
-                <div className="text-sm font-semibold text-white">{stat.en}</div>
+                <div className="text-sm font-semibold text-white">
+                  {stat.en}
+                </div>
                 <div className="text-xs font-mm text-white/50">{stat.mm}</div>
               </div>
             ))}
@@ -126,12 +138,16 @@ export default function Home() {
                     {String(idx + 1).padStart(2, "0")}
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <div className="font-mm text-sm text-[var(--sunmoon-gold)]">{cat.nameMm}</div>
+                    <div className="font-mm text-sm text-[var(--sunmoon-gold)]">
+                      {cat.nameMm}
+                    </div>
                     <h3 className="mt-1 font-serif text-2xl font-bold text-white">
                       {cat.nameEn}
                     </h3>
                     {cat.description && (
-                      <p className="mt-1.5 text-xs text-white/70 line-clamp-2">{cat.description}</p>
+                      <p className="mt-1.5 text-xs text-white/70 line-clamp-2">
+                        {cat.description}
+                      </p>
                     )}
                   </div>
                 </article>
@@ -167,11 +183,13 @@ export default function Home() {
           {upcoming.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-white p-16 text-center">
               <Calendar className="h-10 w-10 mx-auto text-foreground/30" />
-              <p className="mt-3 text-foreground/60">No upcoming events at the moment.</p>
+              <p className="mt-3 text-foreground/60">
+                No upcoming events at the moment.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {upcoming.map((evt) => (
+              {upcoming.map(evt => (
                 <EventCard
                   key={evt.id}
                   slug={evt.slug}
@@ -243,7 +261,9 @@ export default function Home() {
                 <div className="font-mm text-sm text-[var(--sunmoon-blue)] mt-0.5">
                   {item.titleMm}
                 </div>
-                <p className="mt-3 text-sm text-foreground/70 leading-relaxed">{item.copy}</p>
+                <p className="mt-3 text-sm text-foreground/70 leading-relaxed">
+                  {item.copy}
+                </p>
               </article>
             ))}
           </div>

@@ -8,30 +8,47 @@ import { useMemo } from "react";
 import { Link, useRoute } from "wouter";
 
 export default function EventsPage() {
-  const [matchCategory, paramsCategory] = useRoute<{ slug: string }>("/categories/:slug");
+  const [matchCategory, paramsCategory] = useRoute<{ slug: string }>(
+    "/categories/:slug"
+  );
   const slug = matchCategory ? paramsCategory?.slug : undefined;
-  const queryInput = useMemo(() => (slug ? { categorySlug: slug } : undefined), [slug]);
-  const { data: events, isLoading } = trpc.catalog.listEvents.useQuery(queryInput);
+  const queryInput = useMemo(
+    () => (slug ? { categorySlug: slug } : undefined),
+    [slug]
+  );
+  const { data: events, isLoading } =
+    trpc.catalog.listEvents.useQuery(queryInput);
   const { data: categories } = trpc.catalog.listCategories.useQuery();
 
   const displayCategories = categories?.length ? categories : demoCategories;
   const displayEvents = events?.length
     ? events
-    : demoEvents.filter((event) => !slug || event.category.slug === slug);
-  const activeCategory = slug ? displayCategories.find((c) => c.slug === slug) : null;
+    : demoEvents.filter(event => !slug || event.category.slug === slug);
+  const activeCategory = slug
+    ? displayCategories.find(c => c.slug === slug)
+    : null;
 
   return (
     <SiteLayout>
       <div className="border-b border-border bg-secondary/40">
         <div className="container py-12 md:py-16">
           <nav className="text-xs text-foreground/60 mb-3">
-            <Link href="/" className="hover:text-[var(--sunmoon-navy)]">Home</Link>
+            <Link href="/" className="hover:text-[var(--sunmoon-navy)]">
+              Home
+            </Link>
             <span className="mx-2">/</span>
             {slug ? (
               <>
-                <Link href="/categories" className="hover:text-[var(--sunmoon-navy)]">Categories</Link>
+                <Link
+                  href="/categories"
+                  className="hover:text-[var(--sunmoon-navy)]"
+                >
+                  Categories
+                </Link>
                 <span className="mx-2">/</span>
-                <span className="text-[var(--sunmoon-navy)]">{activeCategory?.nameEn ?? slug}</span>
+                <span className="text-[var(--sunmoon-navy)]">
+                  {activeCategory?.nameEn ?? slug}
+                </span>
               </>
             ) : (
               <span className="text-[var(--sunmoon-navy)]">Events</span>
@@ -66,7 +83,7 @@ export default function EventsPage() {
               All
             </span>
           </Link>
-          {displayCategories.map((c) => (
+          {displayCategories.map(c => (
             <Link key={c.id} href={`/categories/${c.slug}`}>
               <span
                 className={cn(
@@ -77,7 +94,9 @@ export default function EventsPage() {
                 )}
               >
                 {c.nameEn}
-                <span className="font-mm font-normal opacity-70">· {c.nameMm}</span>
+                <span className="font-mm font-normal opacity-70">
+                  · {c.nameMm}
+                </span>
               </span>
             </Link>
           ))}
@@ -87,18 +106,23 @@ export default function EventsPage() {
       <div className="container py-12">
         {isLoading && !events ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="aspect-[3/4] rounded-lg bg-secondary animate-pulse" />
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div
+                key={i}
+                className="aspect-[3/4] rounded-lg bg-secondary animate-pulse"
+              />
             ))}
           </div>
         ) : displayEvents.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-white p-16 text-center">
             <Calendar className="h-10 w-10 mx-auto text-foreground/30" />
-            <p className="mt-3 text-foreground/60">No events in this category yet.</p>
+            <p className="mt-3 text-foreground/60">
+              No events in this category yet.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {displayEvents.map((evt) => (
+            {displayEvents.map(evt => (
               <EventCard
                 key={evt.id}
                 slug={evt.slug}

@@ -5,7 +5,8 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 
 export default function CategoriesPage() {
-  const { data: categories, isLoading } = trpc.catalog.listCategories.useQuery();
+  const { data: categories, isLoading } =
+    trpc.catalog.listCategories.useQuery();
   const displayCategories = categories?.length ? categories : demoCategories;
 
   return (
@@ -13,7 +14,9 @@ export default function CategoriesPage() {
       <div className="border-b border-border bg-secondary/40">
         <div className="container py-12 md:py-16">
           <nav className="text-xs text-foreground/60 mb-3">
-            <Link href="/" className="hover:text-[var(--sunmoon-navy)]">Home</Link>
+            <Link href="/" className="hover:text-[var(--sunmoon-navy)]">
+              Home
+            </Link>
             <span className="mx-2">/</span>
             <span className="text-[var(--sunmoon-navy)]">Categories</span>
           </nav>
@@ -22,20 +25,25 @@ export default function CategoriesPage() {
               Festival Categories
             </h1>
           </div>
-          <p className="font-mm text-base text-foreground/60 mt-2">အမျိုးအစား စာရင်း</p>
+          <p className="font-mm text-base text-foreground/60 mt-2">
+            အမျိုးအစား စာရင်း
+          </p>
         </div>
       </div>
 
       <div className="container py-12">
         {isLoading && !categories ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="aspect-[16/10] rounded-lg bg-secondary animate-pulse" />
+            {[1, 2, 3, 4].map(i => (
+              <div
+                key={i}
+                className="aspect-[16/10] rounded-lg bg-secondary animate-pulse"
+              />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {displayCategories.map((cat) => (
+            {displayCategories.map(cat => (
               <Link key={cat.id} href={`/categories/${cat.slug}`}>
                 <article className="group relative aspect-[16/9] overflow-hidden rounded-lg border border-border">
                   {cat.posterUrl ? (
@@ -49,7 +57,9 @@ export default function CategoriesPage() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/30" />
                   <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
-                    <div className="font-mm text-base text-[var(--sunmoon-gold)]">{cat.nameMm}</div>
+                    <div className="font-mm text-base text-[var(--sunmoon-gold)]">
+                      {cat.nameMm}
+                    </div>
                     <h2 className="mt-1 font-serif text-3xl md:text-4xl font-bold text-white">
                       {cat.nameEn}
                     </h2>

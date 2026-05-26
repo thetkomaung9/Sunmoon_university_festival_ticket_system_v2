@@ -2,9 +2,17 @@ import SiteLayout from "@/components/SiteLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { demoEvents, demoTicketTypes } from "@/lib/demoCatalog";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-import { Calendar, CheckCircle2, Loader2, MapPin, Tag, Users } from "lucide-react";
+import {
+  Calendar,
+  CheckCircle2,
+  Loader2,
+  MapPin,
+  Tag,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLocation, useRoute } from "wouter";
@@ -21,7 +29,10 @@ export default function EventDetailPage() {
   const [, navigate] = useLocation();
   const slug = params?.slug ?? "";
 
-  const { data, isLoading } = trpc.catalog.getEventBySlug.useQuery({ slug }, { enabled: !!slug });
+  const { data, isLoading } = trpc.catalog.getEventBySlug.useQuery(
+    { slug },
+    { enabled: !!slug }
+  );
   const createPending = trpc.orders.createPending.useMutation();
 
   const [ticketTypeId, setTicketTypeId] = useState<number | null>(null);
@@ -32,7 +43,9 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (data && !ticketTypeId && data.ticketTypes.length > 0) {
-      const firstActive = data.ticketTypes.find((t) => t.status === "ACTIVE") ?? data.ticketTypes[0];
+      const firstActive =
+        data.ticketTypes.find(t => t.status === "ACTIVE") ??
+        data.ticketTypes[0];
       setTicketTypeId(firstActive.id);
     }
   }, [data, ticketTypeId]);
@@ -47,19 +60,62 @@ export default function EventDetailPage() {
     );
   }
   if (!data) {
+    const demoEvent = demoEvents.find(item => item.slug === slug);
+    if (!demoEvent) {
+      return (
+        <SiteLayout>
+          <div className="container py-20 text-center text-foreground/60">
+            Event not found.
+          </div>
+        </SiteLayout>
+      );
+    }
+    const eventTicketTypes = demoTicketTypes.filter(
+      item => item.eventId === demoEvent.id
+    );
     return (
-      <SiteLayout>
-        <div className="container py-20 text-center text-foreground/60">Event not found.</div>
-      </SiteLayout>
+      <EventDetailContent
+        event={demoEvent}
+        ticketTypes={eventTicketTypes}
+        category={demoEvent.category}
+      />
     );
   }
 
   const { event, ticketTypes, category } = data;
-  const tt = ticketTypes.find((t) => t.id === ticketTypeId);
+  return (
+    <EventDetailContent
+      event={event}
+      ticketTypes={ticketTypes}
+      category={category}
+    />
+  );
+}
+
+function EventDetailContent({
+  event,
+  ticketTypes,
+  category,
+}: {
+  event: any;
+  ticketTypes: any[];
+  category: any;
+}) {
+  const createPending = trpc.orders.createPending.useMutation();
+  const [, navigate] = useLocation();
+  const [ticketTypeId, setTicketTypeId] = useState<number | null>(
+    ticketTypes[0]?.id ?? null
+  );
+  const [quantity, setQuantity] = useState(1);
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const tt = ticketTypes.find(t => t.id === ticketTypeId);
   const total = (tt?.price ?? 0) * quantity;
   const remaining = tt ? tt.stock - tt.soldCount : 0;
   const startsAt = new Date(event.startsAt);
-  const saleClosed = Date.now() > event.saleEndsAt || event.status !== "PUBLISHED";
+  const saleClosed =
+    Date.now() > event.saleEndsAt || event.status !== "PUBLISHED";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -79,7 +135,9 @@ export default function EventDetailPage() {
       });
       navigate(`/checkout/${result.merchantUid}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create order");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create order"
+      );
     }
   }
 
@@ -89,7 +147,11 @@ export default function EventDetailPage() {
       <section className="relative isolate overflow-hidden">
         <div className="absolute inset-0 -z-10">
           {event.posterUrl && (
-            <img src={event.posterUrl} alt="" className="h-full w-full object-cover" />
+            <img
+              src={event.posterUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--sunmoon-navy-deep)]/95 via-[var(--sunmoon-navy)]/85 to-[var(--sunmoon-navy)]/60" />
         </div>
@@ -138,8 +200,12 @@ export default function EventDetailPage() {
         {/* Description */}
         <div className="lg:col-span-2 space-y-8">
           <section>
-            <h2 className="font-serif text-2xl font-bold text-[var(--sunmoon-navy)]">About this event</h2>
-            <p className="font-mm text-sm text-foreground/60">ပွဲတော် အကြောင်း</p>
+            <h2 className="font-serif text-2xl font-bold text-[var(--sunmoon-navy)]">
+              About this event
+            </h2>
+            <p className="font-mm text-sm text-foreground/60">
+              ပွဲတော် အကြောင်း
+            </p>
             <p className="mt-4 text-foreground/80 leading-relaxed whitespace-pre-line">
               {event.description}
             </p>
@@ -152,7 +218,7 @@ export default function EventDetailPage() {
             <p className="font-mm text-sm text-foreground/60">လက်မှတ် ရွေးပါ</p>
 
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {ticketTypes.map((t) => {
+              {ticketTypes.map(t => {
                 const left = t.stock - t.soldCount;
                 const sold = left <= 0 || t.status !== "ACTIVE";
                 const desc = TT_DESC[t.name] ?? { en: "", mm: "" };
@@ -167,8 +233,8 @@ export default function EventDetailPage() {
                       ticketTypeId === t.id && !sold
                         ? "border-[var(--sunmoon-navy)] bg-[var(--sunmoon-navy)]/5"
                         : sold
-                        ? "border-border bg-secondary/40 opacity-60 cursor-not-allowed"
-                        : "border-border bg-white hover:border-[var(--sunmoon-navy)]/40"
+                          ? "border-border bg-secondary/40 opacity-60 cursor-not-allowed"
+                          : "border-border bg-white hover:border-[var(--sunmoon-navy)]/40"
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -181,8 +247,12 @@ export default function EventDetailPage() {
                             <CheckCircle2 className="h-4 w-4 text-[var(--sunmoon-blue)]" />
                           )}
                         </div>
-                        <p className="text-xs text-foreground/60 mt-0.5">{desc.en}</p>
-                        <p className="text-xs font-mm text-foreground/50">{desc.mm}</p>
+                        <p className="text-xs text-foreground/60 mt-0.5">
+                          {desc.en}
+                        </p>
+                        <p className="text-xs font-mm text-foreground/50">
+                          {desc.mm}
+                        </p>
                       </div>
                       <div className="text-right shrink-0">
                         <div className="font-serif text-xl font-bold text-[var(--sunmoon-navy)]">
@@ -215,15 +285,20 @@ export default function EventDetailPage() {
             <h3 className="font-serif text-xl font-bold text-[var(--sunmoon-navy)]">
               Reserve tickets
             </h3>
-            <p className="font-mm text-xs text-foreground/60">လက်မှတ် ဝယ်ယူရန်</p>
+            <p className="font-mm text-xs text-foreground/60">
+              လက်မှတ် ဝယ်ယူရန်
+            </p>
 
             <div className="mt-5 space-y-4">
               <div>
-                <Label htmlFor="qty" className="text-xs uppercase tracking-wider">
+                <Label
+                  htmlFor="qty"
+                  className="text-xs uppercase tracking-wider"
+                >
                   Quantity
                 </Label>
                 <div className="mt-1.5 flex items-center gap-2">
-                  {[1, 2, 3, 4].map((n) => (
+                  {[1, 2, 3, 4].map(n => (
                     <button
                       type="button"
                       key={n}
@@ -248,40 +323,52 @@ export default function EventDetailPage() {
               </div>
 
               <div>
-                <Label htmlFor="name" className="text-xs uppercase tracking-wider">
+                <Label
+                  htmlFor="name"
+                  className="text-xs uppercase tracking-wider"
+                >
                   Full name
                 </Label>
                 <Input
                   id="name"
                   value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
+                  onChange={e => setBuyerName(e.target.value)}
                   required
                   placeholder="Mg Mg"
                   className="mt-1.5"
                 />
               </div>
               <div>
-                <Label htmlFor="email" className="text-xs uppercase tracking-wider">
+                <Label
+                  htmlFor="email"
+                  className="text-xs uppercase tracking-wider"
+                >
                   Email
                 </Label>
                 <Input
                   id="email"
                   type="email"
                   value={buyerEmail}
-                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  onChange={e => setBuyerEmail(e.target.value)}
                   required
                   placeholder="student@sunmoon.ac.kr"
                   className="mt-1.5"
                 />
               </div>
               <div>
-                <Label htmlFor="phone" className="text-xs uppercase tracking-wider">
-                  Phone <span className="text-foreground/40 normal-case">(optional)</span>
+                <Label
+                  htmlFor="phone"
+                  className="text-xs uppercase tracking-wider"
+                >
+                  Phone{" "}
+                  <span className="text-foreground/40 normal-case">
+                    (optional)
+                  </span>
                 </Label>
                 <Input
                   id="phone"
                   value={buyerPhone}
-                  onChange={(e) => setBuyerPhone(e.target.value)}
+                  onChange={e => setBuyerPhone(e.target.value)}
                   placeholder="010-0000-0000"
                   className="mt-1.5"
                 />
@@ -297,7 +384,9 @@ export default function EventDetailPage() {
                 <span className="font-medium">₩ {total.toLocaleString()}</span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-xs uppercase tracking-wider text-foreground/60">Total</span>
+                <span className="text-xs uppercase tracking-wider text-foreground/60">
+                  Total
+                </span>
                 <span className="font-serif text-2xl font-bold text-[var(--sunmoon-navy)]">
                   ₩ {total.toLocaleString()}
                 </span>
@@ -318,8 +407,8 @@ export default function EventDetailPage() {
               )}
             </Button>
             <p className="mt-3 text-[11px] text-foreground/50 leading-relaxed">
-              Order is created in <strong>PENDING</strong> state. Tickets are issued only after the
-              payment is verified server-side via webhook.
+              Order is created in <strong>PENDING</strong> state. Tickets are
+              issued only after the payment is verified server-side via webhook.
             </p>
           </form>
         </aside>
