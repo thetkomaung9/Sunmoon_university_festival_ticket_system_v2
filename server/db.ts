@@ -50,7 +50,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const values: InsertUser = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
-  const textFields = ["name", "email", "loginMethod"] as const;
+  const textFields = ["name", "email", "loginMethod", "passwordHash"] as const;
   type TextField = (typeof textFields)[number];
 
   const assignNullable = (field: TextField) => {
@@ -94,6 +94,17 @@ export async function getUserByOpenId(openId: string) {
     .select()
     .from(users)
     .where(eq(users.openId, openId))
+    .limit(1);
+  return result[0];
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email.toLowerCase()))
     .limit(1);
   return result[0];
 }
