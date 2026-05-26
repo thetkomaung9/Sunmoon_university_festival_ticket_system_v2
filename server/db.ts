@@ -228,6 +228,15 @@ export async function incrementSoldCount(ticketTypeId: number, by: number) {
     .where(eq(ticketTypes.id, ticketTypeId));
 }
 
+export async function releaseSoldCount(ticketTypeId: number, by: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(ticketTypes)
+    .set({ soldCount: sql`GREATEST(${ticketTypes.soldCount} - ${by}, 0)` })
+    .where(eq(ticketTypes.id, ticketTypeId));
+}
+
 // ─────────────────────────────────────────────
 // Orders
 // ─────────────────────────────────────────────
@@ -237,6 +246,34 @@ export async function createOrder(input: InsertOrder) {
   if (!db) throw new Error("DB unavailable");
   const result = await db.insert(orders).values(input);
   return Number((result as unknown as { insertId: number }).insertId);
+}
+
+export async function createPendingOrderWithReservation(input: InsertOrder) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  if (!input.ticketTypeId || !input.quantity) {
+    throw new Error("ticketTypeId and quantity are required");
+  }
+
+  return db.transaction(async (tx) => {
+    const reserveResult = await tx
+      .update(ticketTypes)
+      .set({ soldCount: sql`${ticketTypes.soldCount} + ${input.quantity}` })
+      .where(
+        and(
+          eq(ticketTypes.id, input.ticketTypeId),
+          eq(ticketTypes.status, "ACTIVE"),
+          sql`${ticketTypes.soldCount} + ${input.quantity} <= ${ticketTypes.stock}`
+        )
+      );
+    const affectedRows = Number((reserveResult as unknown as { affectedRows?: number }).affectedRows ?? 0);
+    if (affectedRows === 0) {
+      throw new Error("Not enough tickets remaining");
+    }
+
+    const result = await tx.insert(orders).values(input);
+    return Number((result as unknown as { insertId: number }).insertId);
+  });
 }
 
 export async function getOrderById(id: number) {
