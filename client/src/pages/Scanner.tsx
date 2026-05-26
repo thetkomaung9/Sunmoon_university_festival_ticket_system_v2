@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Link } from "wouter";
 
 type ScanResult =
   | { kind: "idle" }
