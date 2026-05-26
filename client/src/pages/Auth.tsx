@@ -32,7 +32,11 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     event.preventDefault();
     try {
       if (isSignup) {
-        await signup.mutateAsync({ name: name.trim(), email: email.trim(), password });
+        await signup.mutateAsync({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+        });
         toast.success("Account created.");
       } else {
         await login.mutateAsync({ email: email.trim(), password });
@@ -41,7 +45,9 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       await utils.auth.me.invalidate();
       navigate(adminParams ? "/admin" : "/");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Authentication failed");
+      toast.error(
+        error instanceof Error ? error.message : "Authentication failed"
+      );
     }
   }
 
@@ -50,7 +56,11 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <div className="container py-14 max-w-md">
         <div className="rounded-lg border border-border bg-card p-6 shadow-[0_2px_24px_-12px_rgba(11,43,92,0.18)]">
           <div className="h-12 w-12 rounded-md bg-[var(--sunmoon-navy)] text-white flex items-center justify-center">
-            {isSignup ? <UserPlus className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+            {isSignup ? (
+              <UserPlus className="h-5 w-5" />
+            ) : (
+              <Lock className="h-5 w-5" />
+            )}
           </div>
           <h1 className="mt-4 font-serif text-3xl font-bold text-[var(--sunmoon-navy)]">
             {isSignup ? "Create account" : "Sign in"}
@@ -62,7 +72,10 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             {isSignup && (
               <div>
-                <Label htmlFor="name" className="text-xs uppercase tracking-wider">
+                <Label
+                  htmlFor="name"
+                  className="text-xs uppercase tracking-wider"
+                >
                   Full name
                 </Label>
                 <Input
@@ -76,7 +89,10 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
               </div>
             )}
             <div>
-              <Label htmlFor="email" className="text-xs uppercase tracking-wider">
+              <Label
+                htmlFor="email"
+                className="text-xs uppercase tracking-wider"
+              >
                 Email
               </Label>
               <Input
@@ -90,7 +106,10 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
               />
             </div>
             <div>
-              <Label htmlFor="password" className="text-xs uppercase tracking-wider">
+              <Label
+                htmlFor="password"
+                className="text-xs uppercase tracking-wider"
+              >
                 Password
               </Label>
               <Input

@@ -8,7 +8,10 @@ export function hashPassword(password: string): string {
   return `scrypt:${salt}:${hash}`;
 }
 
-export function verifyPassword(password: string, storedHash: string | null): boolean {
+export function verifyPassword(
+  password: string,
+  storedHash: string | null
+): boolean {
   if (!storedHash) return false;
   const [scheme, salt, hash] = storedHash.split(":");
   if (scheme !== "scrypt" || !salt || !hash) return false;

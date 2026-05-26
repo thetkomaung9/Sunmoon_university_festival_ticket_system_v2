@@ -1,7 +1,15 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { GraduationCap, LogOut, Menu, ScanLine, ShieldCheck, Ticket, X } from "lucide-react";
+import {
+  GraduationCap,
+  LogOut,
+  Menu,
+  ScanLine,
+  ShieldCheck,
+  Ticket,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
@@ -18,7 +26,9 @@ export function SunmoonLogo({ className }: { className?: string }) {
       <div className="relative h-10 w-10 shrink-0">
         <div className="absolute inset-0 rounded-full bg-[var(--sunmoon-navy)]" />
         <div className="absolute inset-[3px] rounded-full border border-[var(--sunmoon-gold)]/40 flex items-center justify-center">
-          <span className="font-serif text-base font-bold text-[var(--sunmoon-gold)]">SM</span>
+          <span className="font-serif text-base font-bold text-[var(--sunmoon-gold)]">
+            SM
+          </span>
         </div>
       </div>
       <div className="leading-tight">
@@ -33,7 +43,11 @@ export function SunmoonLogo({ className }: { className?: string }) {
   );
 }
 
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default function SiteLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [location] = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
@@ -51,7 +65,12 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
             <span>Asan Campus, Republic of Korea</span>
           </div>
           <div className="flex items-center gap-4">
-            <a href="https://lily.sunmoon.ac.kr" target="_blank" rel="noreferrer" className="hover:text-white transition">
+            <a
+              href="https://lily.sunmoon.ac.kr"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-white transition"
+            >
               SUNMOON Portal
             </a>
             <span className="text-white/30">|</span>
@@ -68,9 +87,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1">
-            {NAV.map((item) => {
+            {NAV.map(item => {
               const active =
-                location === item.href || (item.href !== "/" && location.startsWith(item.href));
+                location === item.href ||
+                (item.href !== "/" && location.startsWith(item.href));
               return (
                 <Link
                   key={item.href}
@@ -138,7 +158,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
           <button
             type="button"
             aria-label="Toggle menu"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => setOpen(v => !v)}
             className="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-md text-[var(--sunmoon-navy)] hover:bg-secondary transition"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -149,7 +169,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         {open && (
           <div className="lg:hidden border-t border-border bg-white">
             <div className="container py-3 flex flex-col gap-1">
-              {NAV.map((item) => (
+              {NAV.map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -157,7 +177,9 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
                   className="px-3 py-2.5 rounded-md text-sm font-medium hover:bg-secondary"
                 >
                   {item.labelEn}
-                  <span className="ml-2 text-xs font-mm text-foreground/50">{item.labelMm}</span>
+                  <span className="ml-2 text-xs font-mm text-foreground/50">
+                    {item.labelMm}
+                  </span>
                 </Link>
               ))}
               <div className="h-px bg-border my-2" />
@@ -215,27 +237,36 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
                 <div className="font-serif text-base font-bold text-white">
                   Sunmoon University
                 </div>
-                <div className="text-xs font-mm text-white/60">Myanmar Team · မြန်မာအသင်း</div>
+                <div className="text-xs font-mm text-white/60">
+                  Myanmar Team · မြန်မာအသင်း
+                </div>
               </div>
             </div>
             <p className="mt-4 max-w-md text-sm text-white/60 leading-relaxed">
-              The official event ticketing portal of the Sunmoon University Myanmar Team. We
-              celebrate Myanmar culture on Korean soil through Thadingyut, Thingyan, and
-              cultural showcases throughout the academic year.
+              The official event ticketing portal of the Sunmoon University
+              Myanmar Team. We celebrate Myanmar culture on Korean soil through
+              Thadingyut, Thingyan, and cultural showcases throughout the
+              academic year.
             </p>
           </div>
           <div>
             <h4 className="text-sm font-semibold text-white mb-3">Navigate</h4>
             <ul className="space-y-2 text-sm text-white/60">
-              {NAV.map((item) => (
+              {NAV.map(item => (
                 <li key={item.href}>
-                  <Link href={item.href} className="hover:text-white transition">
+                  <Link
+                    href={item.href}
+                    className="hover:text-white transition"
+                  >
                     {item.labelEn}
                   </Link>
                 </li>
               ))}
               <li>
-                <Link href="/scanner" className="hover:text-white transition flex items-center gap-1.5">
+                <Link
+                  href="/scanner"
+                  className="hover:text-white transition flex items-center gap-1.5"
+                >
                   <Ticket className="h-3.5 w-3.5" /> Staff scanner
                 </Link>
               </li>
@@ -252,7 +283,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         </div>
         <div className="border-t border-white/10">
           <div className="container py-4 flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-white/40">
-            <span>© {new Date().getFullYear()} Sunmoon University Myanmar Team. All rights reserved.</span>
+            <span>
+              © {new Date().getFullYear()} Sunmoon University Myanmar Team. All
+              rights reserved.
+            </span>
             <span>Built for ဆန်းမွန် မြန်မာအသင်း · Asan Campus</span>
           </div>
         </div>

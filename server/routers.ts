@@ -15,7 +15,7 @@ import { ticketsRouter } from "./routers/tickets";
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query(opts => opts.ctx.user),
     signup: publicProcedure
       .input(
         z.object({
@@ -26,6 +26,14 @@ export const appRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         const email = input.email.trim().toLowerCase();
+        const database = await db.getDb();
+        if (!database) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Database is not configured. Set DATABASE_URL to enable sign up.",
+          });
+        }
         const existing = await db.getUserByEmail(email);
         if (existing?.passwordHash) {
           throw new TRPCError({
@@ -35,7 +43,10 @@ export const appRouter = router({
         }
 
         const openId = `email:${email}`;
-        const role = email === ENV.ownerOpenId ? "admin" : "user";
+        const role =
+          ENV.ownerOpenId === email || ENV.ownerOpenId === openId
+            ? "admin"
+            : "user";
         await db.upsertUser({
           openId,
           name: input.name.trim(),
@@ -65,6 +76,14 @@ export const appRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         const email = input.email.trim().toLowerCase();
+        const database = await db.getDb();
+        if (!database) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Database is not configured. Set DATABASE_URL to enable sign in.",
+          });
+        }
         const user = await db.getUserByEmail(email);
         if (!user || !verifyPassword(input.password, user.passwordHash)) {
           throw new TRPCError({

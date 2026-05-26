@@ -1,4 +1,13 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, bigint } from "drizzle-orm/mysql-core";
+import {
+  int,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  varchar,
+  json,
+  bigint,
+} from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -57,7 +66,9 @@ export const events = mysqlTable("events", {
   endsAt: bigint("ends_at", { mode: "number" }).notNull(),
   saleStartsAt: bigint("sale_starts_at", { mode: "number" }).notNull(),
   saleEndsAt: bigint("sale_ends_at", { mode: "number" }).notNull(),
-  status: mysqlEnum("status", ["DRAFT", "PUBLISHED", "CLOSED", "CANCELLED"]).default("PUBLISHED").notNull(),
+  status: mysqlEnum("status", ["DRAFT", "PUBLISHED", "CLOSED", "CANCELLED"])
+    .default("PUBLISHED")
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -73,12 +84,19 @@ export type InsertEvent = typeof events.$inferInsert;
 export const ticketTypes = mysqlTable("ticket_types", {
   id: int("id").autoincrement().primaryKey(),
   eventId: int("event_id").notNull(),
-  name: mysqlEnum("name", ["Regular", "VIP", "Early Bird", "Student"]).notNull(),
+  name: mysqlEnum("name", [
+    "Regular",
+    "VIP",
+    "Early Bird",
+    "Student",
+  ]).notNull(),
   price: int("price").notNull(),
   stock: int("stock").notNull(),
   soldCount: int("sold_count").default(0).notNull(),
   maxPerUser: int("max_per_user").default(5).notNull(),
-  status: mysqlEnum("status", ["ACTIVE", "SOLD_OUT", "HIDDEN"]).default("ACTIVE").notNull(),
+  status: mysqlEnum("status", ["ACTIVE", "SOLD_OUT", "HIDDEN"])
+    .default("ACTIVE")
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -100,7 +118,15 @@ export const orders = mysqlTable("orders", {
   buyerPhone: varchar("buyer_phone", { length: 64 }),
   quantity: int("quantity").default(1).notNull(),
   totalAmount: int("total_amount").notNull(),
-  status: mysqlEnum("status", ["PENDING", "PAID", "CANCELLED", "REFUNDED", "EXPIRED"]).default("PENDING").notNull(),
+  status: mysqlEnum("status", [
+    "PENDING",
+    "PAID",
+    "CANCELLED",
+    "REFUNDED",
+    "EXPIRED",
+  ])
+    .default("PENDING")
+    .notNull(),
   paymentProvider: varchar("payment_provider", { length: 64 }),
   paymentKey: varchar("payment_key", { length: 191 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -123,7 +149,9 @@ export const tickets = mysqlTable("tickets", {
   ticketTypeId: int("ticket_type_id").notNull(),
   ticketCode: varchar("ticket_code", { length: 64 }).notNull().unique(),
   qrTokenHash: varchar("qr_token_hash", { length: 128 }).notNull().unique(),
-  status: mysqlEnum("status", ["VALID", "USED", "CANCELLED", "EXPIRED"]).default("VALID").notNull(),
+  status: mysqlEnum("status", ["VALID", "USED", "CANCELLED", "EXPIRED"])
+    .default("VALID")
+    .notNull(),
   issuedAt: timestamp("issued_at").defaultNow().notNull(),
   usedAt: timestamp("used_at"),
   usedByUserId: int("used_by_user_id"),
@@ -155,7 +183,13 @@ export const scanLogs = mysqlTable("scan_logs", {
   id: int("id").autoincrement().primaryKey(),
   ticketId: int("ticket_id"),
   staffId: int("staff_id"),
-  result: mysqlEnum("result", ["SUCCESS", "ALREADY_USED", "INVALID", "CANCELLED", "EXPIRED"]).notNull(),
+  result: mysqlEnum("result", [
+    "SUCCESS",
+    "ALREADY_USED",
+    "INVALID",
+    "CANCELLED",
+    "EXPIRED",
+  ]).notNull(),
   deviceInfo: text("device_info"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

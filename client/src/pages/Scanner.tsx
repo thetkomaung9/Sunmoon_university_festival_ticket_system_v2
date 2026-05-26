@@ -74,7 +74,10 @@ export default function ScannerPage() {
             <p className="mt-2 text-sm text-foreground/60">
               The scanner page is restricted to staff and admin accounts.
             </p>
-            <Button asChild className="mt-5 w-full bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]">
+            <Button
+              asChild
+              className="mt-5 w-full bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]"
+            >
               <Link href="/signin">Sign in</Link>
             </Button>
           </div>
@@ -93,8 +96,8 @@ export default function ScannerPage() {
               Access denied
             </h1>
             <p className="mt-2 text-sm text-foreground/60">
-              Your account ({user?.email ?? "—"}) is signed in but does not have staff
-              permissions. Please contact an admin to upgrade your role.
+              Your account ({user?.email ?? "—"}) is signed in but does not have
+              staff permissions. Please contact an admin to upgrade your role.
             </p>
           </div>
         </div>
@@ -108,7 +111,10 @@ export default function ScannerPage() {
     try {
       const r = await verify.mutateAsync({ qrToken: token.trim() });
       if (!r.valid || !r.status) {
-        setResult({ kind: "invalid", message: "Invalid or unrecognized QR token." });
+        setResult({
+          kind: "invalid",
+          message: "Invalid or unrecognized QR token.",
+        });
         return;
       }
       setResult({
@@ -129,7 +135,10 @@ export default function ScannerPage() {
     if (!token.trim()) return;
     setResult({ kind: "loading" });
     try {
-      const r = await checkIn.mutateAsync({ qrToken: token.trim(), deviceInfo: navigator.userAgent });
+      const r = await checkIn.mutateAsync({
+        qrToken: token.trim(),
+        deviceInfo: navigator.userAgent,
+      });
       if (r.status === "SUCCESS") {
         setResult({
           kind: "checked_in",
@@ -148,7 +157,10 @@ export default function ScannerPage() {
   }
 
   function handlePaste() {
-    navigator.clipboard.readText().then((t) => setToken(t)).catch(() => {});
+    navigator.clipboard
+      .readText()
+      .then(t => setToken(t))
+      .catch(() => {});
   }
 
   function reset() {
@@ -166,7 +178,9 @@ export default function ScannerPage() {
         <h1 className="mt-2 font-serif text-3xl font-bold text-[var(--sunmoon-navy)]">
           Scan tickets at the gate
         </h1>
-        <p className="font-mm text-sm text-foreground/60 mt-1">ပွဲဝင်ရာ၌ စကင်စစ်ဆေး</p>
+        <p className="font-mm text-sm text-foreground/60 mt-1">
+          ပွဲဝင်ရာ၌ စကင်စစ်ဆေး
+        </p>
 
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
           <label className="text-xs uppercase tracking-wider text-foreground/60">
@@ -176,8 +190,8 @@ export default function ScannerPage() {
             <input
               ref={inputRef}
               value={token}
-              onChange={(e) => setToken(e.target.value)}
-              onKeyDown={(e) => {
+              onChange={e => setToken(e.target.value)}
+              onKeyDown={e => {
                 if (e.key === "Enter") handleVerify();
               }}
               placeholder="eyJ0aWQiOjEsImNvZGUi…"
@@ -185,7 +199,11 @@ export default function ScannerPage() {
               autoComplete="off"
               autoFocus
             />
-            <Button variant="outline" onClick={handlePaste} className="bg-white">
+            <Button
+              variant="outline"
+              onClick={handlePaste}
+              className="bg-white"
+            >
               <Clipboard className="h-4 w-4" />
             </Button>
           </div>
@@ -196,7 +214,11 @@ export default function ScannerPage() {
               disabled={!token.trim() || verify.isPending || checkIn.isPending}
               className="bg-white h-11"
             >
-              {verify.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
+              {verify.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ScanLine className="h-4 w-4" />
+              )}
               Verify
             </Button>
             <Button
@@ -204,7 +226,11 @@ export default function ScannerPage() {
               disabled={!token.trim() || verify.isPending || checkIn.isPending}
               className="h-11 bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]"
             >
-              {checkIn.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {checkIn.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
               Check-in
             </Button>
           </div>
@@ -214,17 +240,23 @@ export default function ScannerPage() {
         <ResultCard result={result} onReset={reset} />
 
         <p className="mt-8 text-xs text-foreground/50 leading-relaxed">
-          Tip: keyboard or hardware QR scanners that emit the token followed by Enter will
-          automatically run <strong>Verify</strong>. Use <strong>Check-in</strong> only when the
-          guest is at the gate — it marks the ticket as <strong>USED</strong> and writes a scan
-          log entry.
+          Tip: keyboard or hardware QR scanners that emit the token followed by
+          Enter will automatically run <strong>Verify</strong>. Use{" "}
+          <strong>Check-in</strong> only when the guest is at the gate — it
+          marks the ticket as <strong>USED</strong> and writes a scan log entry.
         </p>
       </div>
     </SiteLayout>
   );
 }
 
-function ResultCard({ result, onReset }: { result: ScanResult; onReset: () => void }) {
+function ResultCard({
+  result,
+  onReset,
+}: {
+  result: ScanResult;
+  onReset: () => void;
+}) {
   if (result.kind === "idle") return null;
   if (result.kind === "loading") {
     return (
@@ -235,15 +267,28 @@ function ResultCard({ result, onReset }: { result: ScanResult; onReset: () => vo
   }
   if (result.kind === "invalid") {
     return (
-      <ResultShell tone="error" icon={XCircle} title="Invalid token" subtitle="မမှန်ကန်" onReset={onReset}>
+      <ResultShell
+        tone="error"
+        icon={XCircle}
+        title="Invalid token"
+        subtitle="မမှန်ကန်"
+        onReset={onReset}
+      >
         <p className="text-sm text-rose-900">{result.message}</p>
       </ResultShell>
     );
   }
   if (result.kind === "rejected") {
-    const map: Record<string, { title: string; mm: string; tone: "error" | "warning" }> = {
+    const map: Record<
+      string,
+      { title: string; mm: string; tone: "error" | "warning" }
+    > = {
       ALREADY_USED: { title: "Already used", mm: "သုံးပြီး", tone: "warning" },
-      CANCELLED: { title: "Cancelled ticket", mm: "ပယ်ဖျက်ပြီး", tone: "error" },
+      CANCELLED: {
+        title: "Cancelled ticket",
+        mm: "ပယ်ဖျက်ပြီး",
+        tone: "error",
+      },
       EXPIRED: { title: "Expired ticket", mm: "သက်တမ်းကုန်", tone: "warning" },
       INVALID: { title: "Invalid", mm: "မမှန်ကန်", tone: "error" },
     };
@@ -256,13 +301,21 @@ function ResultCard({ result, onReset }: { result: ScanResult; onReset: () => vo
         subtitle={info.mm}
         onReset={onReset}
       >
-        <p className="text-sm">Do not let this guest enter without further verification.</p>
+        <p className="text-sm">
+          Do not let this guest enter without further verification.
+        </p>
       </ResultShell>
     );
   }
   if (result.kind === "checked_in") {
     return (
-      <ResultShell tone="success" icon={CheckCircle2} title="Welcome!" subtitle="ကြိုဆိုပါသည်" onReset={onReset}>
+      <ResultShell
+        tone="success"
+        icon={CheckCircle2}
+        title="Welcome!"
+        subtitle="ကြိုဆိုပါသည်"
+        onReset={onReset}
+      >
         <Detail label="Buyer" value={result.buyer ?? "—"} />
         <Detail label="Event" value={result.eventTitle ?? "—"} />
         <Detail label="Type" value={result.ticketType ?? "—"} />
@@ -272,8 +325,17 @@ function ResultCard({ result, onReset }: { result: ScanResult; onReset: () => vo
   }
   // verified
   const tone =
-    result.status === "VALID" ? "success" : result.status === "USED" ? "warning" : "error";
-  const icon = result.status === "VALID" ? ShieldCheck : result.status === "USED" ? CheckCircle2 : XCircle;
+    result.status === "VALID"
+      ? "success"
+      : result.status === "USED"
+        ? "warning"
+        : "error";
+  const icon =
+    result.status === "VALID"
+      ? ShieldCheck
+      : result.status === "USED"
+        ? CheckCircle2
+        : XCircle;
   return (
     <ResultShell
       tone={tone}
@@ -287,7 +349,10 @@ function ResultCard({ result, onReset }: { result: ScanResult; onReset: () => vo
       <Detail label="Type" value={result.ticketType ?? "—"} />
       <Detail label="Code" value={result.ticketCode ?? "—"} mono />
       {result.usedAt && (
-        <Detail label="Used at" value={new Date(result.usedAt).toLocaleString()} />
+        <Detail
+          label="Used at"
+          value={new Date(result.usedAt).toLocaleString()}
+        />
       )}
       {result.status === "VALID" && (
         <p className="mt-2 text-xs text-emerald-900">
@@ -349,11 +414,25 @@ function ResultShell({
   );
 }
 
-function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Detail({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-xs uppercase tracking-wider text-foreground/50">{label}</span>
-      <span className={cn("font-medium text-right", mono && "font-mono text-xs")}>{value}</span>
+      <span className="text-xs uppercase tracking-wider text-foreground/50">
+        {label}
+      </span>
+      <span
+        className={cn("font-medium text-right", mono && "font-mono text-xs")}
+      >
+        {value}
+      </span>
     </div>
   );
 }
