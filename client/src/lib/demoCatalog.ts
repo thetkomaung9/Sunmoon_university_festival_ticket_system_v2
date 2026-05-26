@@ -121,3 +121,24 @@ export const demoEvents = [
     category: demoCategories[2],
   },
 ] as const;
+
+export const demoTicketTypes = [
+  { id: 1, eventId: 1, name: "Regular", price: 15000, stock: 200, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 2, eventId: 1, name: "VIP", price: 35000, stock: 40, soldCount: 0, maxPerUser: 2, status: "ACTIVE" },
+  { id: 3, eventId: 1, name: "Early Bird", price: 10000, stock: 80, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 4, eventId: 1, name: "Student", price: 8000, stock: 150, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 5, eventId: 2, name: "Regular", price: 12000, stock: 250, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 6, eventId: 2, name: "Student", price: 6000, stock: 200, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 7, eventId: 2, name: "VIP", price: 25000, stock: 30, soldCount: 0, maxPerUser: 2, status: "ACTIVE" },
+  { id: 8, eventId: 3, name: "Regular", price: 18000, stock: 300, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 9, eventId: 3, name: "VIP", price: 40000, stock: 50, soldCount: 0, maxPerUser: 2, status: "ACTIVE" },
+  { id: 10, eventId: 3, name: "Early Bird", price: 12000, stock: 100, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 11, eventId: 3, name: "Student", price: 9000, stock: 200, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 12, eventId: 4, name: "Regular", price: 20000, stock: 180, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 13, eventId: 4, name: "VIP", price: 50000, stock: 30, soldCount: 0, maxPerUser: 2, status: "ACTIVE" },
+  { id: 14, eventId: 4, name: "Student", price: 10000, stock: 120, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 15, eventId: 5, name: "Regular", price: 25000, stock: 250, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 16, eventId: 5, name: "VIP", price: 60000, stock: 40, soldCount: 0, maxPerUser: 2, status: "ACTIVE" },
+  { id: 17, eventId: 5, name: "Early Bird", price: 18000, stock: 80, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+  { id: 18, eventId: 5, name: "Student", price: 12000, stock: 150, soldCount: 0, maxPerUser: 4, status: "ACTIVE" },
+] as const;
