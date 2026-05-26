@@ -1,7 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import SiteLayout from "@/components/SiteLayout";
 import { Button } from "@/components/ui/button";
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -75,7 +74,7 @@ export default function ScannerPage() {
               The scanner page is restricted to staff and admin accounts.
             </p>
             <Button asChild className="mt-5 w-full bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]">
-              <a href={getLoginUrl()}>Sign in with Manus</a>
+              <Link href="/signin">Sign in</Link>
             </Button>
           </div>
         </div>

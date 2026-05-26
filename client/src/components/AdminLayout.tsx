@@ -1,7 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SunmoonLogo } from "@/components/SiteLayout";
 import { Button } from "@/components/ui/button";
-import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -48,7 +47,7 @@ export default function AdminLayout({
             Admin sign-in required
           </h1>
           <Button asChild className="mt-5 w-full bg-[var(--sunmoon-navy)]">
-            <a href={getLoginUrl()}>Sign in with Manus</a>
+            <Link href="/signin">Sign in</Link>
           </Button>
         </div>
       </div>
