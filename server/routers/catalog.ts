@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "../_core/trpc";
 import * as db from "../db";
+import { demoCategories, demoEvents, demoTicketTypes } from "../demoCatalog";
 
 const eventStatus = z.enum(["DRAFT", "PUBLISHED", "CLOSED", "CANCELLED"]);
 const categoryStatus = z.enum(["ACTIVE", "HIDDEN"]);
@@ -10,8 +11,9 @@ const ticketTypeStatus = z.enum(["ACTIVE", "SOLD_OUT", "HIDDEN"]);
 
 async function attachCategories<T extends { categoryId: number }>(events: T[]) {
   const categories = await db.listAllCategories();
+  const sourceCategories = categories.length > 0 ? categories : demoCategories;
   const categoryMap = new Map(
-    categories.map(category => [category.id, category])
+    sourceCategories.map(category => [category.id, category])
   );
   return events.map(event => ({
     ...event,
@@ -20,16 +22,30 @@ async function attachCategories<T extends { categoryId: number }>(events: T[]) {
 }
 
 export const catalogRouter = router({
-  listCategories: publicProcedure.query(() => db.listActiveCategories()),
+  listCategories: publicProcedure.query(async () => {
+    const categories = await db.listActiveCategories();
+    return categories.length > 0 ? categories : demoCategories;
+  }),
 
   listEvents: publicProcedure
     .input(z.object({ categorySlug: z.string().optional() }).optional())
     .query(async ({ input }) => {
-      const category = input?.categorySlug
+      const dbCategory = input?.categorySlug
         ? await db.getCategoryBySlug(input.categorySlug)
         : undefined;
+      const category =
+        dbCategory ??
+        demoCategories.find(item => item.slug === input?.categorySlug);
       if (input?.categorySlug && !category) return [];
-      const events = await db.listPublishedEvents(category?.id);
+      const dbEvents = await db.listPublishedEvents(category?.id);
+      const events =
+        dbEvents.length > 0
+          ? dbEvents
+          : demoEvents.filter(
+              event =>
+                event.status === "PUBLISHED" &&
+                (!category || event.categoryId === category.id)
+            );
       return attachCategories(events);
     }),
 
@@ -38,7 +54,22 @@ export const catalogRouter = router({
     .query(async ({ input }) => {
       const event = await db.getEventBySlug(input.slug);
       if (!event || event.status !== "PUBLISHED") {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+        const demoEvent = demoEvents.find(
+          item => item.slug === input.slug && item.status === "PUBLISHED"
+        );
+        if (!demoEvent) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
+        const category =
+          demoCategories.find(item => item.id === demoEvent.categoryId) ??
+          null;
+        const ticketTypes = demoTicketTypes.filter(
+          item => item.eventId === demoEvent.id
+        );
+        return { event: demoEvent, category, ticketTypes };
       }
       const [category, ticketTypes] = await Promise.all([
         db.getEventById(event.id).then(() => db.listAllCategories()),
