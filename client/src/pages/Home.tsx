@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { ArrowRight, Calendar, ScanLine, ShieldCheck, Sparkles, Ticket } from "lucide-react";
 import { Link } from "wouter";
 
-const HERO_IMG = "/manus-storage/lanterns_f8e4aa28.jpg";
+const HERO_IMG = "/categories/lanterns_f8e4aa28.jpg";
 
 export default function Home() {
   const { data: events } = trpc.catalog.listEvents.useQuery();
