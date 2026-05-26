@@ -61,19 +61,27 @@ export const ordersRouter = router({
       }
       const totalAmount = tt.price * input.quantity;
       const merchantUid = genMerchantUid();
-      const orderId = await db.createOrder({
-        merchantUid,
-        eventId: event.id,
-        ticketTypeId: tt.id,
-        userId: ctx.user?.id,
-        buyerName: input.buyerName,
-        buyerEmail: input.buyerEmail,
-        buyerPhone: input.buyerPhone ?? null,
-        quantity: input.quantity,
-        totalAmount,
-        status: "PENDING",
-        paymentProvider: "mock",
-      });
+      let orderId: number;
+      try {
+        orderId = await db.createPendingOrderWithReservation({
+          merchantUid,
+          eventId: event.id,
+          ticketTypeId: tt.id,
+          userId: ctx.user?.id,
+          buyerName: input.buyerName,
+          buyerEmail: input.buyerEmail,
+          buyerPhone: input.buyerPhone ?? null,
+          quantity: input.quantity,
+          totalAmount,
+          status: "PENDING",
+          paymentProvider: "mock",
+        });
+      } catch (err) {
+        if (err instanceof Error && err.message === "Not enough tickets remaining") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
+        }
+        throw err;
+      }
       return { orderId, merchantUid, totalAmount };
     }),
 
@@ -158,7 +166,6 @@ export const ordersRouter = router({
       // Mark paid + issue tickets atomically (best-effort given MySQL).
       const paymentKey = input.paymentKey ?? `mock_${randomBytes(6).toString("hex")}`;
       await db.markOrderPaid(order.id, paymentKey);
-      await db.incrementSoldCount(order.ticketTypeId, order.quantity);
 
       const issued: { code: string; token: string }[] = [];
       for (let i = 0; i < order.quantity; i++) {
@@ -213,6 +220,9 @@ export const ordersRouter = router({
       if (!order) throw new TRPCError({ code: "NOT_FOUND" });
       const newStatus = input.refund ? "REFUNDED" : "CANCELLED";
       await db.setOrderStatus(input.orderId, newStatus);
+      if (order.status === "PENDING") {
+        await db.releaseSoldCount(order.ticketTypeId, order.quantity);
+      }
       // Cancel all tickets
       const tickets = await db.getTicketsByOrder(input.orderId);
       for (const t of tickets) {
