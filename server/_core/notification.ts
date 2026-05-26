@@ -13,6 +13,15 @@ const trimValue = (value: string): string => value.trim();
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const isValidUrl = (value: string): boolean => {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const buildEndpointUrl = (baseUrl: string): string => {
   const normalizedBase = baseUrl.endsWith("/")
     ? baseUrl
@@ -68,18 +77,9 @@ export async function notifyOwner(
 ): Promise<boolean> {
   const { title, content } = validatePayload(payload);
 
-  if (!ENV.forgeApiUrl) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service URL is not configured.",
-    });
-  }
-
-  if (!ENV.forgeApiKey) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service API key is not configured.",
-    });
+  if (!ENV.forgeApiUrl || !isValidUrl(ENV.forgeApiUrl) || !ENV.forgeApiKey) {
+    console.warn("Notification disabled: invalid Forge service config.");
+    return false;
   }
 
   const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
