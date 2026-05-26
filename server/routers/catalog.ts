@@ -79,7 +79,10 @@ export const catalogRouter = router({
       return { event, category: categoryMatch, ticketTypes };
     }),
 
-  adminListCategories: adminProcedure.query(() => db.listAllCategories()),
+  adminListCategories: adminProcedure.query(async () => {
+    const categories = await db.listAllCategories();
+    return categories.length > 0 ? categories : demoCategories;
+  }),
 
   adminCreateCategory: adminProcedure
     .input(
@@ -120,7 +123,7 @@ export const catalogRouter = router({
 
   adminListEvents: adminProcedure.query(async () => {
     const events = await db.listAllEvents();
-    return attachCategories(events);
+    return attachCategories(events.length > 0 ? events : demoEvents);
   }),
 
   adminCreateEvent: adminProcedure
@@ -172,7 +175,12 @@ export const catalogRouter = router({
 
   adminListTicketTypes: adminProcedure
     .input(z.object({ eventId: z.number() }))
-    .query(({ input }) => db.listTicketTypesByEvent(input.eventId)),
+    .query(async ({ input }) => {
+      const ticketTypes = await db.listTicketTypesByEvent(input.eventId);
+      return ticketTypes.length > 0
+        ? ticketTypes
+        : demoTicketTypes.filter(item => item.eventId === input.eventId);
+    }),
 
   adminCreateTicketType: adminProcedure
     .input(
