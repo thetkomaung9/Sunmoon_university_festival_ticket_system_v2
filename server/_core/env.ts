@@ -10,3 +10,21 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
 };
+
+const DEV_SESSION_SECRET = "sunmoon-dev-secret";
+
+export function getSessionSecret(): string {
+  const secret = process.env.JWT_SECRET?.trim() || ENV.cookieSecret.trim();
+
+  if (secret.length > 0) {
+    return secret;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "JWT_SECRET is required in production and must not be empty."
+    );
+  }
+
+  return DEV_SESSION_SECRET;
+}
