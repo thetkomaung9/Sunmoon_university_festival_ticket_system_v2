@@ -6,7 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
-import { ENV } from "./env";
+import { ENV, getSessionSecret } from "./env";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -154,8 +154,8 @@ class SDKServer {
     return new Map(Object.entries(parsed));
   }
 
-  private getSessionSecret() {
-    const secret = ENV.cookieSecret;
+  private getSessionSecretKey() {
+    const secret = getSessionSecret();
     return new TextEncoder().encode(secret);
   }
 
@@ -185,7 +185,7 @@ class SDKServer {
     const issuedAt = Date.now();
     const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
     const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
-    const secretKey = this.getSessionSecret();
+    const secretKey = this.getSessionSecretKey();
 
     return new SignJWT({
       openId: payload.openId,
@@ -206,7 +206,7 @@ class SDKServer {
     }
 
     try {
-      const secretKey = this.getSessionSecret();
+      const secretKey = this.getSessionSecretKey();
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
       });

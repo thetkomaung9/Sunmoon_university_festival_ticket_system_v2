@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
-import { ENV } from "./_core/env";
+import { getSessionSecret } from "./_core/env";
 
 /**
  * QR token format: base64url(payload).base64url(signature)
@@ -13,11 +13,6 @@ import { ENV } from "./_core/env";
  * only the *hash* of the full token in `tickets.qr_token_hash`, never the raw
  * signature.
  */
-
-function getSecret(): string {
-  // Fall back to a deterministic dev-only secret so tests can run without env.
-  return ENV.cookieSecret || process.env.JWT_SECRET || "sunmoon-dev-secret";
-}
 
 function b64urlEncode(buf: Buffer): string {
   return buf.toString("base64").replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -43,7 +38,7 @@ export function signQrToken(payload: { ticketId: number; ticketCode: string }): 
     iat: Date.now(),
   };
   const payloadB64 = b64urlEncode(Buffer.from(JSON.stringify(body)));
-  const sig = createHmac("sha256", getSecret()).update(payloadB64).digest();
+  const sig = createHmac("sha256", getSessionSecret()).update(payloadB64).digest();
   const sigB64 = b64urlEncode(sig);
   return `${payloadB64}.${sigB64}`;
 }
@@ -52,7 +47,7 @@ export function verifyQrToken(token: string): QrTokenPayload | null {
   try {
     const [payloadB64, sigB64] = token.split(".");
     if (!payloadB64 || !sigB64) return null;
-    const expectedSig = createHmac("sha256", getSecret()).update(payloadB64).digest();
+    const expectedSig = createHmac("sha256", getSessionSecret()).update(payloadB64).digest();
     const givenSig = b64urlDecode(sigB64);
     if (givenSig.length !== expectedSig.length) return null;
     if (!timingSafeEqual(givenSig, expectedSig)) return null;
@@ -66,5 +61,5 @@ export function verifyQrToken(token: string): QrTokenPayload | null {
 }
 
 export function hashToken(token: string): string {
-  return createHmac("sha256", getSecret()).update(`hash:${token}`).digest("hex");
+  return createHmac("sha256", getSessionSecret()).update(`hash:${token}`).digest("hex");
 }
