@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
+import { getDevAdminCredentials } from "./devAdmin";
 import { hashPassword, verifyPassword } from "./passwordAuth";
 
 type CookieCall = {
@@ -62,6 +63,33 @@ describe("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+});
+
+describe("auth.login development admin", () => {
+  it("allows the local development admin when DATABASE_URL is missing", async () => {
+    const cookies: Array<{ name: string; value: string }> = [];
+    const ctx: TrpcContext = {
+      user: null,
+      req: {
+        protocol: "http",
+        headers: {},
+      } as TrpcContext["req"],
+      res: {
+        cookie: (name: string, value: string) => {
+          cookies.push({ name, value });
+        },
+      } as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+    const credentials = getDevAdminCredentials();
+
+    const result = await caller.auth.login(credentials);
+
+    expect(result).toEqual({ success: true });
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0]?.name).toBe(COOKIE_NAME);
+    expect(cookies[0]?.value).toBeTruthy();
   });
 });
 

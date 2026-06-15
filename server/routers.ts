@@ -7,6 +7,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
+import { DEV_ADMIN_OPEN_ID, isDevAdminLogin } from "./devAdmin";
 import { hashPassword, verifyPassword } from "./passwordAuth";
 import { catalogRouter } from "./routers/catalog";
 import { ordersRouter } from "./routers/orders";
@@ -78,10 +79,25 @@ export const appRouter = router({
         const email = input.email.trim().toLowerCase();
         const database = await db.getDb();
         if (!database) {
+          if (isDevAdminLogin(email, input.password)) {
+            const sessionToken = await sdk.createSessionToken(
+              DEV_ADMIN_OPEN_ID,
+              {
+                name: "Development Admin",
+              }
+            );
+            ctx.res.cookie(COOKIE_NAME, sessionToken, {
+              ...getSessionCookieOptions(ctx.req),
+              maxAge: 1000 * 60 * 60 * 24 * 365,
+            });
+
+            return { success: true };
+          }
+
           throw new TRPCError({
             code: "PRECONDITION_FAILED",
             message:
-              "Database is not configured. Set DATABASE_URL to enable sign in.",
+              "Database is not configured. Use the local development admin account or set DATABASE_URL to enable sign in.",
           });
         }
         const user = await db.getUserByEmail(email);

@@ -6,6 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
+import { createDevAdminUser, DEV_ADMIN_OPEN_ID, isDevAdminEnabled } from "../devAdmin";
 import { ENV, getSessionSecret } from "./env";
 import type {
   ExchangeTokenRequest,
@@ -278,6 +279,10 @@ class SDKServer {
     const sessionUserId = session.openId;
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
+
+    if (!user && sessionUserId === DEV_ADMIN_OPEN_ID && isDevAdminEnabled()) {
+      return createDevAdminUser();
+    }
 
     // If user not in DB, sync from OAuth server automatically
     if (!user) {
