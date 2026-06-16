@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getSessionSecret } from "./env";
+import {
+  MissingSessionSecretError,
+  getSessionSecret,
+  validateStartupEnvironment,
+} from "./env";
 
 describe("getSessionSecret", () => {
   afterEach(() => {
@@ -20,6 +24,7 @@ describe("getSessionSecret", () => {
     expect(() => getSessionSecret()).toThrow(
       "JWT_SECRET is required in production and must not be empty."
     );
+    expect(() => getSessionSecret()).toThrow(MissingSessionSecretError);
   });
 
   it("trims and returns the configured JWT_SECRET", () => {
@@ -27,5 +32,18 @@ describe("getSessionSecret", () => {
     vi.stubEnv("JWT_SECRET", "  configured-secret  ");
 
     expect(getSessionSecret()).toBe("configured-secret");
+  });
+
+  it("validates production JWT_SECRET during startup", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("JWT_SECRET", "");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() => validateStartupEnvironment()).toThrow(
+      MissingSessionSecretError
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      "[Startup] Missing required JWT_SECRET. Configure a non-empty JWT_SECRET in Railway variables before starting the production server."
+    );
   });
 });

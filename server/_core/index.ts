@@ -7,7 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { ENV } from "./env";
+import { ENV, validateStartupEnvironment } from "./env";
 import { serveStatic, setupVite } from "./vite";
 
 function getAllowedCorsOrigins() {
@@ -69,6 +69,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  validateStartupEnvironment();
+
   const app = express();
   const server = createServer(app);
   registerCors(app);
@@ -104,4 +106,7 @@ async function startServer() {
   });
 }
 
-startServer().catch(console.error);
+startServer().catch(error => {
+  console.error("[Startup] Server failed to start:", error);
+  process.exitCode = 1;
+});

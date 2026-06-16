@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { ENV } from "./_core/env";
+import { ENV, isSessionSecretError } from "./_core/env";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 import { DEV_ADMIN_OPEN_ID, isDevAdminLogin } from "./devAdmin";
@@ -12,6 +12,28 @@ import { hashPassword, verifyPassword } from "./passwordAuth";
 import { catalogRouter } from "./routers/catalog";
 import { ordersRouter } from "./routers/orders";
 import { ticketsRouter } from "./routers/tickets";
+
+async function createAuthSessionToken(
+  openId: string,
+  options: { name?: string } = {}
+): Promise<string> {
+  try {
+    return await sdk.createSessionToken(openId, options);
+  } catch (error) {
+    if (isSessionSecretError(error)) {
+      console.error(
+        "[Auth] Cannot create session token because JWT_SECRET is missing or invalid."
+      );
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message:
+          "Authentication is temporarily unavailable because the server session secret is not configured.",
+      });
+    }
+
+    throw error;
+  }
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -58,7 +80,7 @@ export const appRouter = router({
           lastSignedIn: new Date(),
         });
 
-        const sessionToken = await sdk.createSessionToken(openId, {
+        const sessionToken = await createAuthSessionToken(openId, {
           name: input.name.trim(),
         });
         ctx.res.cookie(COOKIE_NAME, sessionToken, {
@@ -80,7 +102,7 @@ export const appRouter = router({
         const database = await db.getDb();
         if (!database) {
           if (isDevAdminLogin(email, input.password)) {
-            const sessionToken = await sdk.createSessionToken(
+            const sessionToken = await createAuthSessionToken(
               DEV_ADMIN_OPEN_ID,
               {
                 name: "Development Admin",
@@ -112,7 +134,7 @@ export const appRouter = router({
           openId: user.openId,
           lastSignedIn: new Date(),
         });
-        const sessionToken = await sdk.createSessionToken(user.openId, {
+        const sessionToken = await createAuthSessionToken(user.openId, {
           name: user.name ?? "",
         });
         ctx.res.cookie(COOKIE_NAME, sessionToken, {
