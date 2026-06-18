@@ -25,6 +25,12 @@ export type SessionPayload = {
   name: string;
 };
 
+type VerifiedSession = {
+  openId: string;
+  appId: string;
+  name: string;
+};
+
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
@@ -148,10 +154,15 @@ class SDKServer {
 
   private parseCookies(cookieHeader: string | undefined) {
     if (!cookieHeader) {
+      console.info("[Auth] Cookie parsing: no Cookie header present");
       return new Map<string, string>();
     }
 
     const parsed = parseCookieHeader(cookieHeader);
+    console.info("[Auth] Cookie parsing complete", {
+      cookieNames: Object.keys(parsed),
+      hasSessionCookie: Boolean(parsed[COOKIE_NAME]),
+    });
     return new Map(Object.entries(parsed));
   }
 
@@ -169,11 +180,21 @@ class SDKServer {
     openId: string,
     options: { expiresInMs?: number; name?: string } = {}
   ): Promise<string> {
+    const appId = ENV.appId || "university_festival_ticket_system";
+    const name = options.name?.trim() || openId;
+
+    console.info("[Auth] Creating session token", {
+      openId,
+      appId,
+      hasName: name.length > 0,
+      expiresInMs: options.expiresInMs ?? ONE_YEAR_MS,
+    });
+
     return this.signSession(
       {
         openId,
-        appId: ENV.appId,
-        name: options.name || "",
+        appId,
+        name,
       },
       options
     );
@@ -200,7 +221,7 @@ class SDKServer {
 
   async verifySession(
     cookieValue: string | undefined | null
-  ): Promise<{ openId: string; appId: string; name: string } | null> {
+  ): Promise<VerifiedSession | null> {
     if (!cookieValue) {
       console.warn("[Auth] Missing session cookie");
       return null;
@@ -213,19 +234,31 @@ class SDKServer {
       });
       const { openId, appId, name } = payload as Record<string, unknown>;
 
-      if (
-        !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId) ||
-        !isNonEmptyString(name)
-      ) {
-        console.warn("[Auth] Session payload missing required fields");
+      if (!isNonEmptyString(openId)) {
+        console.warn("[Auth] Session payload missing required fields", {
+          missing: ["openId"],
+          hasAppId: isNonEmptyString(appId),
+          hasName: isNonEmptyString(name),
+        });
         return null;
       }
 
+      const normalizedAppId = isNonEmptyString(appId)
+        ? appId
+        : ENV.appId || "university_festival_ticket_system";
+      const normalizedName = isNonEmptyString(name) ? name : openId;
+
+      console.info("[Auth] Session validation succeeded", {
+        openId,
+        appId: normalizedAppId,
+        hadAppId: isNonEmptyString(appId),
+        hadName: isNonEmptyString(name),
+      });
+
       return {
         openId,
-        appId,
-        name,
+        appId: normalizedAppId,
+        name: normalizedName,
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));
@@ -261,6 +294,11 @@ class SDKServer {
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
+    console.info("[Auth] Authenticating request", {
+      path: req.path,
+      method: req.method,
+      hasSessionCookie: Boolean(sessionCookie),
+    });
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {

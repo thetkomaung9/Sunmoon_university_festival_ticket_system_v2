@@ -6,7 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Loader2, Lock, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Link, useLocation, useRoute } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export function SignInPage() {
   return <AuthForm mode="signin" />;
@@ -18,7 +18,6 @@ export function SignUpPage() {
 
 function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [, navigate] = useLocation();
-  const [, adminParams] = useRoute("/admin/:rest*");
   const utils = trpc.useUtils();
   const login = trpc.auth.login.useMutation();
   const signup = trpc.auth.signup.useMutation();
@@ -42,8 +41,8 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         await login.mutateAsync({ email: email.trim(), password });
         toast.success("Signed in.");
       }
-      await utils.auth.me.invalidate();
-      navigate(adminParams ? "/admin" : "/");
+      const user = await utils.auth.me.fetch();
+      navigate(user?.role === "admin" ? "/admin" : "/");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Authentication failed"

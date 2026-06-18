@@ -1,7 +1,8 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
+import type { TrpcContext } from "./_core/context";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { ENV, isSessionSecretError } from "./_core/env";
@@ -33,6 +34,27 @@ async function createAuthSessionToken(
 
     throw error;
   }
+}
+
+function setAuthSessionCookie(
+  ctx: Pick<TrpcContext, "req" | "res">,
+  sessionToken: string,
+  openId: string
+) {
+  const cookieOptions = getSessionCookieOptions(ctx.req);
+  console.info("[Auth] Setting session cookie", {
+    openId,
+    cookieName: COOKIE_NAME,
+    maxAge: ONE_YEAR_MS,
+    secure: cookieOptions.secure,
+    sameSite: cookieOptions.sameSite,
+    path: cookieOptions.path,
+    domain: cookieOptions.domain,
+  });
+  ctx.res.cookie(COOKIE_NAME, sessionToken, {
+    ...cookieOptions,
+    maxAge: ONE_YEAR_MS,
+  });
 }
 
 export const appRouter = router({
@@ -83,10 +105,7 @@ export const appRouter = router({
         const sessionToken = await createAuthSessionToken(openId, {
           name: input.name.trim(),
         });
-        ctx.res.cookie(COOKIE_NAME, sessionToken, {
-          ...getSessionCookieOptions(ctx.req),
-          maxAge: 1000 * 60 * 60 * 24 * 365,
-        });
+        setAuthSessionCookie(ctx, sessionToken, openId);
 
         return { success: true };
       }),
@@ -108,10 +127,7 @@ export const appRouter = router({
                 name: "Development Admin",
               }
             );
-            ctx.res.cookie(COOKIE_NAME, sessionToken, {
-              ...getSessionCookieOptions(ctx.req),
-              maxAge: 1000 * 60 * 60 * 24 * 365,
-            });
+            setAuthSessionCookie(ctx, sessionToken, DEV_ADMIN_OPEN_ID);
 
             return { success: true };
           }
@@ -137,10 +153,7 @@ export const appRouter = router({
         const sessionToken = await createAuthSessionToken(user.openId, {
           name: user.name ?? "",
         });
-        ctx.res.cookie(COOKIE_NAME, sessionToken, {
-          ...getSessionCookieOptions(ctx.req),
-          maxAge: 1000 * 60 * 60 * 24 * 365,
-        });
+        setAuthSessionCookie(ctx, sessionToken, user.openId);
 
         return { success: true };
       }),

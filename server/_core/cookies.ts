@@ -39,10 +39,22 @@ export function getSessionCookieOptions(
   //       ? hostname
   //       : undefined;
 
-  return {
+  const secure = isSecureRequest(req);
+  const options = {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
-  };
+    sameSite: secure ? "none" : "lax",
+    secure,
+  } as const;
+
+  console.info("[Auth] Session cookie options resolved", {
+    secure: options.secure,
+    sameSite: options.sameSite,
+    path: options.path,
+    domain: undefined,
+    protocol: req.protocol,
+    forwardedProto: req.headers["x-forwarded-proto"],
+  });
+
+  return options;
 }
