@@ -1,4 +1,6 @@
+import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
+import { createDrizzleKitMysqlCredentials } from "./server/_core/mysqlConfig";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -9,7 +11,5 @@ export default defineConfig({
   schema: "./drizzle/schema.ts",
   out: "./drizzle",
   dialect: "mysql",
-  dbCredentials: {
-    url: connectionString,
-  },
+  dbCredentials: createDrizzleKitMysqlCredentials(connectionString),
 });

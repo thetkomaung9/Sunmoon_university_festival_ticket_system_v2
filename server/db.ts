@@ -1,5 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import type { MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import {
   attendance,
@@ -28,7 +29,7 @@ import {
 import { ENV } from "./_core/env";
 import { createMysqlPoolOptions } from "./_core/mysqlConfig";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: MySql2Database<Record<string, unknown>> | null = null;
 let _pool: mysql.Pool | null = null;
 
 export async function getDb() {
