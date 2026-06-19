@@ -158,6 +158,15 @@ export const ticketsRouter = router({
         result: "SUCCESS",
         deviceInfo: input.deviceInfo ?? null,
       });
+      await db.recordAttendance({
+        ticketId: ticket.id,
+        eventId: ticket.eventId,
+        orderId: ticket.orderId,
+        staffId: ctx.user.id,
+        scanLogId: null,
+        status: "CHECKED_IN",
+        deviceInfo: input.deviceInfo ?? null,
+      });
       const order = await db.getOrderById(ticket.orderId);
       const event = await db.getEventById(ticket.eventId);
       const tt = await db.getTicketType(ticket.ticketTypeId);

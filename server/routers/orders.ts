@@ -197,6 +197,16 @@ export const ordersRouter = router({
       const paymentKey =
         input.paymentKey ?? `mock_${randomBytes(6).toString("hex")}`;
       await db.markOrderPaid(order.id, paymentKey);
+      await db.createPayment({
+        orderId: order.id,
+        provider: "mock",
+        paymentKey,
+        amount: order.totalAmount,
+        currency: "KRW",
+        status: "SUCCEEDED",
+        rawPayload: { input },
+        paidAt: new Date(),
+      });
 
       const issued: { code: string; token: string }[] = [];
       for (let i = 0; i < order.quantity; i++) {
