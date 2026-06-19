@@ -374,7 +374,7 @@ export default function ScannerPage() {
               Verify
             </Button>
             <Button
-              onClick={handleCheckIn}
+              onClick={() => handleCheckIn()}
               disabled={!token.trim() || verify.isPending || checkIn.isPending}
               className="h-11 bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]"
             >
@@ -392,10 +392,11 @@ export default function ScannerPage() {
         <ResultCard result={result} onReset={reset} />
 
         <p className="mt-8 text-xs text-foreground/50 leading-relaxed">
-          Tip: keyboard or hardware QR scanners that emit the token followed by
-          Enter will automatically run <strong>Verify</strong>. Use{" "}
-          <strong>Check-in</strong> only when the guest is at the gate — it
-          marks the ticket as <strong>USED</strong> and writes a scan log entry.
+          Tip: camera scans check in automatically. Keyboard or hardware QR
+          scanners that emit the token followed by Enter will automatically run{" "}
+          <strong>Verify</strong>. Use <strong>Check-in</strong> only when the
+          guest is at the gate — it marks the ticket as <strong>USED</strong>{" "}
+          and writes a scan log entry.
         </p>
       </div>
     </SiteLayout>
@@ -422,7 +423,7 @@ function ResultCard({
       <ResultShell
         tone="error"
         icon={XCircle}
-        title="Invalid token"
+        title="Invalid Ticket"
         subtitle="မမှန်ကန်"
         onReset={onReset}
       >
@@ -435,7 +436,11 @@ function ResultCard({
       string,
       { title: string; mm: string; tone: "error" | "warning" }
     > = {
-      ALREADY_USED: { title: "Already used", mm: "သုံးပြီး", tone: "warning" },
+      ALREADY_USED: {
+        title: "Ticket Already Used",
+        mm: "သုံးပြီး",
+        tone: "warning",
+      },
       CANCELLED: {
         title: "Cancelled ticket",
         mm: "ပယ်ဖျက်ပြီး",
@@ -468,10 +473,18 @@ function ResultCard({
         subtitle="ကြိုဆိုပါသည်"
         onReset={onReset}
       >
+        <Detail label="Ticket Number" value={result.ticketCode ?? "—"} mono />
+        <Detail label="Event Name" value={result.eventTitle ?? "—"} />
+        <Detail
+          label="Check-in Time"
+          value={
+            result.checkedInAt
+              ? new Date(result.checkedInAt).toLocaleString()
+              : new Date().toLocaleString()
+          }
+        />
         <Detail label="Buyer" value={result.buyer ?? "—"} />
-        <Detail label="Event" value={result.eventTitle ?? "—"} />
         <Detail label="Type" value={result.ticketType ?? "—"} />
-        <Detail label="Code" value={result.ticketCode ?? "—"} mono />
       </ResultShell>
     );
   }

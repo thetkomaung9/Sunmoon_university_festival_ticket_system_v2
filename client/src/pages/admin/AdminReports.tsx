@@ -89,9 +89,9 @@ export default function AdminReports() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <Stat label="Total tickets" value={report.summary.total} />
             <Stat label="Checked in" value={report.summary.used} accent />
-            <Stat label="Valid (not yet)" value={report.summary.valid} />
+            <Stat label="Remaining tickets" value={report.summary.remaining} />
             <Stat
-              label="Attendance rate"
+              label="Attendance percentage"
               value={`${(report.summary.attendanceRate * 100).toFixed(1)}%`}
             />
           </div>
