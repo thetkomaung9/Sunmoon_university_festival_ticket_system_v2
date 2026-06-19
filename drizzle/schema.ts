@@ -7,6 +7,7 @@ import {
   varchar,
   json,
   bigint,
+  uniqueIndex,
 } from "drizzle-orm/mysql-core";
 
 /**
