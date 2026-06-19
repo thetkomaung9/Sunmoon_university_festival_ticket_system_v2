@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import type { TrpcContext } from "./_core/context";
+import { assertIpRateLimit } from "./_core/rateLimit";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { ENV, isSessionSecretError } from "./_core/env";
@@ -70,6 +71,11 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
+        assertIpRateLimit(ctx, {
+          namespace: "auth.login",
+          limit: 10,
+          windowMs: 60_000,
+        });
         const email = input.email.trim().toLowerCase();
         const database = await db.getDb();
         if (!database) {

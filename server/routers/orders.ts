@@ -11,6 +11,7 @@ import {
   router,
 } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
+import { assertIpRateLimit, assertUserRateLimit } from "../_core/rateLimit";
 import * as db from "../db";
 import { hashToken, signQrToken } from "../qrToken";
 import { storagePut } from "../storage";
@@ -237,6 +238,11 @@ export const ordersRouter = router({
   getByMerchantUid: protectedProcedure
     .input(z.object({ merchantUid: z.string() }))
     .query(async ({ input, ctx }) => {
+      assertIpRateLimit(ctx, {
+        namespace: "orders.getByMerchantUid",
+        limit: 30,
+        windowMs: 60_000,
+      });
       const order = await db.getOrderByMerchantUid(input.merchantUid);
       if (!order)
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
@@ -267,6 +273,11 @@ export const ordersRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      assertUserRateLimit(ctx.user.id, {
+        namespace: "orders.uploadPaymentProof",
+        limit: 10,
+        windowMs: 60_000,
+      });
       assertReceiptFileName(input.fileName);
       const order = await db.getOrderByMerchantUid(input.merchantUid);
       if (!order) {
