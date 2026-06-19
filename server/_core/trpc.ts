@@ -2,6 +2,7 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
+import { assertCsrfSafe } from "./csrf";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -27,6 +28,13 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
+const csrfProtection = t.middleware(async opts => {
+  assertCsrfSafe(opts.ctx);
+  return opts.next();
+});
+
+export const protectedMutationProcedure = protectedProcedure.use(csrfProtection);
+
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
@@ -44,6 +52,8 @@ export const adminProcedure = t.procedure.use(
   }),
 );
 
+export const adminMutationProcedure = adminProcedure.use(csrfProtection);
+
 export const staffProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
@@ -60,3 +70,5 @@ export const staffProcedure = t.procedure.use(
     });
   }),
 );
+
+export const staffMutationProcedure = staffProcedure.use(csrfProtection);

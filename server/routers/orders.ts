@@ -2,7 +2,12 @@ import { TRPCError } from "@trpc/server";
 import { randomBytes } from "node:crypto";
 import QRCode from "qrcode";
 import { z } from "zod";
-import { adminProcedure, publicProcedure, router } from "../_core/trpc";
+import {
+  adminMutationProcedure,
+  adminProcedure,
+  publicProcedure,
+  router,
+} from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
 import * as db from "../db";
 import { hashToken, signQrToken } from "../qrToken";
@@ -414,7 +419,7 @@ export const ordersRouter = router({
     return rows;
   }),
 
-  adminApprovePaymentProof: adminProcedure
+  adminApprovePaymentProof: adminMutationProcedure
     .input(z.object({ proofId: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const proof = await db.getPaymentProofById(input.proofId);
@@ -492,7 +497,7 @@ export const ordersRouter = router({
       return { ok: true, alreadyPaid: false, tickets: issued };
     }),
 
-  adminRejectPaymentProof: adminProcedure
+  adminRejectPaymentProof: adminMutationProcedure
     .input(
       z.object({
         proofId: z.number(),
@@ -539,7 +544,7 @@ export const ordersRouter = router({
       return { ok: true, status: "REJECTED" as const };
     }),
 
-  adminCancelOrder: adminProcedure
+  adminCancelOrder: adminMutationProcedure
     .input(
       z.object({ orderId: z.number(), refund: z.boolean().default(false) })
     )
@@ -565,7 +570,7 @@ export const ordersRouter = router({
       return { ok: true, status: newStatus };
     }),
 
-  adminResendTickets: adminProcedure
+  adminResendTickets: adminMutationProcedure
     .input(z.object({ orderId: z.number() }))
     .mutation(async ({ input }) => {
       const order = await db.getOrderById(input.orderId);

@@ -1,6 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { adminProcedure, publicProcedure, router, staffProcedure } from "../_core/trpc";
+import {
+  adminProcedure,
+  publicProcedure,
+  router,
+  staffMutationProcedure,
+  staffProcedure,
+} from "../_core/trpc";
 import * as db from "../db";
 import { hashToken, signQrToken, verifyQrToken } from "../qrToken";
 
@@ -75,7 +81,7 @@ export const ticketsRouter = router({
    * STAFF: Verify a scanned QR token without marking it used.
    * Returns the buyer / event info + status.
    */
-  scannerVerify: staffProcedure
+  scannerVerify: staffMutationProcedure
     .input(z.object({ qrToken: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const { ticket } = await resolveTicketFromToken(input.qrToken);
@@ -110,7 +116,7 @@ export const ticketsRouter = router({
    * STAFF: Mark ticket USED. Server-side verifies token + status before mutating.
    * Records a scan log row regardless of outcome.
    */
-  scannerCheckIn: staffProcedure
+  scannerCheckIn: staffMutationProcedure
     .input(z.object({ qrToken: z.string(), deviceInfo: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
       const { ticket } = await resolveTicketFromToken(input.qrToken);

@@ -1,6 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { adminProcedure, publicProcedure, router } from "../_core/trpc";
+import {
+  adminMutationProcedure,
+  adminProcedure,
+  publicProcedure,
+  router,
+} from "../_core/trpc";
 import * as db from "../db";
 import { demoCategories, demoEvents, demoTicketTypes } from "../demoCatalog";
 
@@ -84,7 +89,7 @@ export const catalogRouter = router({
     return categories.length > 0 ? categories : demoCategories;
   }),
 
-  adminCreateCategory: adminProcedure
+  adminCreateCategory: adminMutationProcedure
     .input(
       z.object({
         nameMm: z.string().min(1).max(191),
@@ -98,7 +103,7 @@ export const catalogRouter = router({
     )
     .mutation(async ({ input }) => ({ id: await db.createCategory(input) })),
 
-  adminUpdateCategory: adminProcedure
+  adminUpdateCategory: adminMutationProcedure
     .input(
       z
         .object({
@@ -126,7 +131,7 @@ export const catalogRouter = router({
     return attachCategories(events.length > 0 ? events : demoEvents);
   }),
 
-  adminCreateEvent: adminProcedure
+  adminCreateEvent: adminMutationProcedure
     .input(
       z.object({
         categoryId: z.number(),
@@ -145,7 +150,7 @@ export const catalogRouter = router({
     )
     .mutation(async ({ input }) => ({ id: await db.createEvent(input) })),
 
-  adminUpdateEvent: adminProcedure
+  adminUpdateEvent: adminMutationProcedure
     .input(
       z
         .object({
@@ -182,7 +187,7 @@ export const catalogRouter = router({
         : demoTicketTypes.filter(item => item.eventId === input.eventId);
     }),
 
-  adminCreateTicketType: adminProcedure
+  adminCreateTicketType: adminMutationProcedure
     .input(
       z.object({
         eventId: z.number(),
@@ -195,7 +200,7 @@ export const catalogRouter = router({
     )
     .mutation(async ({ input }) => ({ id: await db.createTicketType(input) })),
 
-  adminUpdateTicketType: adminProcedure
+  adminUpdateTicketType: adminMutationProcedure
     .input(
       z
         .object({
