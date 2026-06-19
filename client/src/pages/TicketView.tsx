@@ -163,10 +163,18 @@ export default function TicketViewPage() {
 
             {/* QR Section */}
             <div className="flex flex-col items-center text-center">
-              {ticket.status === "VALID" && qrToken ? (
+              {ticket.status === "VALID" && (qrToken || ticket.qrImageUrl) ? (
                 <>
                   <div className="rounded-lg border-2 border-[var(--sunmoon-navy)]/15 p-3 bg-white">
-                    <canvas ref={canvasRef} />
+                    {ticket.qrImageUrl ? (
+                      <img
+                        src={ticket.qrImageUrl}
+                        alt={`QR code for ticket ${ticket.ticketCode}`}
+                        className="h-[280px] w-[280px]"
+                      />
+                    ) : (
+                      <canvas ref={canvasRef} />
+                    )}
                   </div>
                   <div className="mt-3 font-mono text-sm font-bold text-[var(--sunmoon-navy)]">
                     {ticket.ticketCode}

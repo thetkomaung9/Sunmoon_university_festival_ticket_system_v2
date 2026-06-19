@@ -42,7 +42,7 @@ export const ticketsRouter = router({
     // its first view; subsequent views must match. (Pragmatic compromise for
     // demo: hash is stable per ticket and re-derivable on the server.)
     let token: string | null = null;
-    if (ticket.status === "VALID") {
+    if (ticket.status === "VALID" && !ticket.qrImageUrl) {
       const candidate = signQrToken({ ticketId: ticket.id, ticketCode: ticket.ticketCode });
       const candidateHash = hashToken(candidate);
       if (candidateHash === ticket.qrTokenHash) {
