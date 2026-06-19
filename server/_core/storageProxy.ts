@@ -1,5 +1,8 @@
 import type { Express } from "express";
+import type { User } from "../../drizzle/schema";
+import * as db from "../db";
 import { ENV } from "./env";
+import { sdk } from "./sdk";
 
 function getForgeBaseUrl(): string | null {
   if (!ENV.forgeApiUrl || !ENV.forgeApiKey) return null;
@@ -8,6 +11,54 @@ function getForgeBaseUrl(): string | null {
   } catch {
     return null;
   }
+}
+
+type StorageAccess =
+  | { kind: "public" }
+  | { kind: "paymentProof"; merchantUid: string }
+  | { kind: "qrTicket"; ticketCode: string };
+
+function stripHashSuffix(value: string) {
+  return value.replace(/_[a-f0-9]{8}$/i, "");
+}
+
+export function classifyStorageKey(key: string): StorageAccess {
+  const paymentProof = /^payment-proofs\/(.+)\.(jpg|jpeg|png|webp)$/i.exec(
+    key
+  );
+  if (paymentProof?.[1]) {
+    return { kind: "paymentProof", merchantUid: stripHashSuffix(paymentProof[1]) };
+  }
+
+  const qrTicket = /^qr-tickets\/(.+)\.png$/i.exec(key);
+  if (qrTicket?.[1]) {
+    return { kind: "qrTicket", ticketCode: stripHashSuffix(qrTicket[1]) };
+  }
+
+  return { kind: "public" };
+}
+
+function isStaffOrAdmin(user: User) {
+  return user.role === "admin" || user.role === "staff";
+}
+
+export async function canAccessStorageKey(
+  key: string,
+  user: User | null
+): Promise<boolean> {
+  const access = classifyStorageKey(key);
+  if (access.kind === "public") return true;
+  if (!user) return false;
+
+  if (access.kind === "paymentProof") {
+    return user.role === "admin";
+  }
+
+  const ticket = await db.getTicketByCode(access.ticketCode);
+  if (!ticket) return false;
+  if (isStaffOrAdmin(user)) return true;
+  const order = await db.getOrderById(ticket.orderId);
+  return order?.userId === user.id;
 }
 
 export function registerStorageProxy(app: Express) {
@@ -25,6 +76,13 @@ export function registerStorageProxy(app: Express) {
     }
 
     try {
+      const user = await sdk.authenticateRequest(req).catch(() => null);
+      const allowed = await canAccessStorageKey(key, user);
+      if (!allowed) {
+        res.status(user ? 403 : 401).send("Storage access denied");
+        return;
+      }
+
       const forgeUrl = new URL("v1/storage/presign/get", `${forgeBaseUrl}/`);
       forgeUrl.searchParams.set("path", key);
 

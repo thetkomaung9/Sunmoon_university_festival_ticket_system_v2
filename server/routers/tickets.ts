@@ -228,34 +228,23 @@ export const ticketsRouter = router({
         return { ok: false, status: "EXPIRED" as const };
       }
       // status === VALID
-      const checkedInAt = new Date();
-      await db.markTicketUsed(ticket.id, ctx.user.id);
-      const scanLogId = await db.logScan({
+      const checkIn = await db.checkInTicketAtomically({
         ticketId: ticket.id,
         staffId: ctx.user.id,
-        result: "SUCCESS",
         deviceInfo: input.deviceInfo ?? null,
       });
-      await db.recordAttendance({
-        ticketId: ticket.id,
-        eventId: ticket.eventId,
-        orderId: ticket.orderId,
-        staffId: ctx.user.id,
-        scanLogId: scanLogId ?? null,
-        status: "CHECKED_IN",
-        deviceInfo: input.deviceInfo ?? null,
-      });
+      if (!checkIn.ok) return checkIn;
       const order = await db.getOrderById(ticket.orderId);
       const event = await db.getEventById(ticket.eventId);
       const tt = await db.getTicketType(ticket.ticketTypeId);
       return {
         ok: true,
         status: "SUCCESS" as const,
-        ticket: { id: ticket.id, code: ticket.ticketCode },
+        ticket: checkIn.ticket,
         buyer: order ? { name: order.buyerName } : null,
         event: event ? { title: event.title } : null,
         ticketType: tt ? { name: tt.name } : null,
-        checkedInAt,
+        checkedInAt: checkIn.checkedInAt,
       };
     }),
 
