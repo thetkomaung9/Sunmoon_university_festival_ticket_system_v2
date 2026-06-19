@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
 import { getDevAdminCredentials } from "./devAdmin";
 import { hashPassword, verifyPassword } from "./passwordAuth";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 type CookieCall = {
   name: string;
@@ -68,6 +72,7 @@ describe("auth.logout", () => {
 
 describe("auth.login development admin", () => {
   it("allows the local development admin when DATABASE_URL is missing", async () => {
+    vi.stubEnv("DATABASE_URL", "");
     const cookies: Array<{ name: string; value: string }> = [];
     const ctx: TrpcContext = {
       user: null,
