@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   adminMutationProcedure,
   adminProcedure,
+  protectedMutationProcedure,
+  protectedProcedure,
   publicProcedure,
   router,
 } from "../_core/trpc";
@@ -84,6 +86,60 @@ async function createQrImage(ticketCode: string, signedToken: string) {
   const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
   const buffer = Buffer.from(base64, "base64");
   return storagePut(`qr-tickets/${ticketCode}.png`, buffer, "image/png");
+}
+
+type OrderForCheckout = NonNullable<Awaited<ReturnType<typeof db.getOrderByMerchantUid>>>;
+type PaymentProofForCheckout = NonNullable<Awaited<ReturnType<typeof db.getLatestPaymentProofByOrder>>>;
+type TicketForCheckout = Awaited<ReturnType<typeof db.getTicketsByOrder>>[number];
+
+function assertOrderAccess(order: OrderForCheckout, user: NonNullable<Parameters<typeof isAdminUser>[0]>) {
+  if (isAdminUser(user)) return;
+  if (order.userId !== user.id) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Order access denied" });
+  }
+}
+
+function isAdminUser(user: { role: string }) {
+  return user.role === "admin";
+}
+
+function serializeOrderForCheckout(order: OrderForCheckout) {
+  return {
+    id: order.id,
+    merchantUid: order.merchantUid,
+    eventId: order.eventId,
+    ticketTypeId: order.ticketTypeId,
+    buyerName: order.buyerName,
+    buyerEmail: order.buyerEmail,
+    quantity: order.quantity,
+    totalAmount: order.totalAmount,
+    status: order.status,
+  };
+}
+
+function serializeTicketForCheckout(ticket: TicketForCheckout) {
+  return {
+    id: ticket.id,
+    ticketCode: ticket.ticketCode,
+    status: ticket.status,
+    qrImageUrl: ticket.qrImageUrl,
+  };
+}
+
+function serializeProofForCheckout(
+  proof: PaymentProofForCheckout | undefined,
+  options: { includeReceiptUrl: boolean }
+) {
+  if (!proof) return null;
+  return {
+    id: proof.id,
+    status: proof.status,
+    rejectionReason: proof.rejectionReason,
+    createdAt: proof.createdAt,
+    ...(options.includeReceiptUrl
+      ? { receiptImageUrl: proof.receiptImageUrl }
+      : {}),
+  };
 }
 
 export const ordersRouter = router({
@@ -172,30 +228,34 @@ export const ordersRouter = router({
     }),
 
   /**
-   * PUBLIC: Read order summary by merchantUid (for the checkout page).
-   * Returns minimal info — no auth required since the merchantUid acts as a capability.
+   * Authenticated order summary by merchantUid.
+   * Owners can view their own order; admins can view any order.
    */
-  getByMerchantUid: publicProcedure
+  getByMerchantUid: protectedProcedure
     .input(z.object({ merchantUid: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const order = await db.getOrderByMerchantUid(input.merchantUid);
       if (!order)
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      assertOrderAccess(order, ctx.user);
       const event = await db.getEventById(order.eventId);
       const tt = await db.getTicketType(order.ticketTypeId);
       const issuedTickets =
         order.status === "PAID" ? await db.getTicketsByOrder(order.id) : [];
       const latestProof = await db.getLatestPaymentProofByOrder(order.id);
+      const isAdmin = isAdminUser(ctx.user);
       return {
-        order,
+        order: serializeOrderForCheckout(order),
         event,
         ticketType: tt,
-        tickets: issuedTickets,
-        latestProof: latestProof ?? null,
+        tickets: issuedTickets.map(serializeTicketForCheckout),
+        latestProof: serializeProofForCheckout(latestProof, {
+          includeReceiptUrl: isAdmin,
+        }),
       };
     }),
 
-  uploadPaymentProof: publicProcedure
+  uploadPaymentProof: protectedMutationProcedure
     .input(
       z.object({
         merchantUid: z.string(),
@@ -205,12 +265,15 @@ export const ordersRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       assertReceiptFileName(input.fileName);
-      const { buffer, contentType, extension } = parseReceiptDataUrl(
-        input.receiptImageDataUrl
-      );
       const order = await db.getOrderByMerchantUid(input.merchantUid);
       if (!order) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      }
+      if (order.userId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Order access denied",
+        });
       }
       if (order.status !== "PENDING") {
         throw new TRPCError({
@@ -219,6 +282,9 @@ export const ordersRouter = router({
         });
       }
 
+      const { buffer, contentType, extension } = parseReceiptDataUrl(
+        input.receiptImageDataUrl
+      );
       const upload = await storagePut(
         `payment-proofs/${order.merchantUid}.${extension}`,
         buffer,
