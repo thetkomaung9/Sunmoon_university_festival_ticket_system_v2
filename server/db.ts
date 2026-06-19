@@ -573,6 +573,18 @@ export async function listPendingPaymentProofs() {
     .orderBy(desc(paymentProofs.createdAt));
 }
 
+export async function getLatestPaymentProofByOrder(orderId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const r = await db
+    .select()
+    .from(paymentProofs)
+    .where(eq(paymentProofs.orderId, orderId))
+    .orderBy(desc(paymentProofs.createdAt))
+    .limit(1);
+  return r[0];
+}
+
 export async function setPaymentProofApproved(
   proofId: number,
   reviewedByUserId: number

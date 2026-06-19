@@ -180,17 +180,13 @@ export const ordersRouter = router({
       const tt = await db.getTicketType(order.ticketTypeId);
       const issuedTickets =
         order.status === "PAID" ? await db.getTicketsByOrder(order.id) : [];
-      const proofs = await db.listPendingPaymentProofs();
-      const pendingProof =
-        order.status === "PENDING_PAYMENT_VERIFICATION"
-          ? proofs.find(proof => proof.orderId === order.id) ?? null
-          : null;
+      const latestProof = await db.getLatestPaymentProofByOrder(order.id);
       return {
         order,
         event,
         ticketType: tt,
         tickets: issuedTickets,
-        pendingProof,
+        latestProof: latestProof ?? null,
       };
     }),
 
