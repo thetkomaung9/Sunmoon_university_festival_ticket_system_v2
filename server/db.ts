@@ -655,8 +655,9 @@ export async function recordAttendance(input: InsertAttendance) {
 
 export async function logScan(input: InsertScanLog) {
   const db = await getDb();
-  if (!db) return;
-  await db.insert(scanLogs).values(input);
+  if (!db) return undefined;
+  const result = await db.insert(scanLogs).values(input);
+  return Number((result as unknown as { insertId: number }).insertId);
 }
 
 export async function listScanLogsByEvent(eventId: number) {
