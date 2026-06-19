@@ -541,6 +541,160 @@ export async function getLatestTicketCodeForYear(year: number) {
   return r[0]?.ticketCode;
 }
 
+function parseTicketSequence(ticketCode: string | undefined, year: number) {
+  if (!ticketCode) return 0;
+  const match = new RegExp(`^FT-${year}-(\\d{6})$`).exec(ticketCode);
+  return match ? Number(match[1]) : 0;
+}
+
+function affectedRows(result: unknown) {
+  return Number((result as { affectedRows?: number }).affectedRows ?? 0);
+}
+
+export async function approvePaymentProofAndIssueTickets(input: {
+  proofId: number;
+  reviewedByUserId: number;
+  createTicketQr: (
+    ticketId: number,
+    ticketCode: string
+  ) => Promise<{ qrTokenHash: string; qrImageUrl: string }>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+
+  return db.transaction(async tx => {
+    const proofRows = await tx
+      .select()
+      .from(paymentProofs)
+      .where(eq(paymentProofs.id, input.proofId))
+      .limit(1);
+    const proof = proofRows[0];
+    if (!proof) throw new Error("Proof not found");
+    if (proof.status !== "PENDING") {
+      throw new Error(`Proof is already ${proof.status}.`);
+    }
+
+    const orderRows = await tx
+      .select()
+      .from(orders)
+      .where(eq(orders.id, proof.orderId))
+      .limit(1);
+    const order = orderRows[0];
+    if (!order) throw new Error("Order not found");
+
+    if (order.status === "PAID") {
+      const existingTickets = await tx
+        .select()
+        .from(tickets)
+        .where(eq(tickets.orderId, order.id));
+      await tx
+        .update(paymentProofs)
+        .set({
+          status: "APPROVED",
+          reviewedByUserId: input.reviewedByUserId,
+          reviewedAt: new Date(),
+          rejectionReason: null,
+        })
+        .where(eq(paymentProofs.id, proof.id));
+      return {
+        alreadyPaid: true,
+        tickets: existingTickets.map(ticket => ticket.ticketCode),
+      };
+    }
+
+    if (order.status !== "PENDING_PAYMENT_VERIFICATION") {
+      throw new Error(`Order is ${order.status}; approval is not available.`);
+    }
+
+    const paymentRows = proof.paymentId
+      ? await tx
+          .select()
+          .from(payments)
+          .where(eq(payments.id, proof.paymentId))
+          .limit(1)
+      : await tx
+          .select()
+          .from(payments)
+          .where(eq(payments.paymentKey, `bank_${order.merchantUid}`))
+          .limit(1);
+    const payment = paymentRows[0];
+    if (!payment) throw new Error("Payment record not found");
+    if (payment.orderId !== order.id) {
+      throw new Error("Payment does not belong to this order");
+    }
+    if (payment.amount !== order.totalAmount) {
+      throw new Error("Payment amount does not match order total");
+    }
+    if (payment.status !== "PENDING_VERIFICATION") {
+      throw new Error(`Payment is ${payment.status}; approval is not available.`);
+    }
+
+    await tx
+      .update(payments)
+      .set({ status: "PAID", paidAt: new Date() })
+      .where(eq(payments.id, payment.id));
+    await tx
+      .update(orders)
+      .set({
+        status: "PAID",
+        paymentKey: `bank_${order.merchantUid}`,
+        paidAt: new Date(),
+      })
+      .where(eq(orders.id, order.id));
+
+    const year = new Date().getFullYear();
+    const prefix = `FT-${year}-`;
+    const latestRows = await tx
+      .select({ ticketCode: tickets.ticketCode })
+      .from(tickets)
+      .where(sql`${tickets.ticketCode} LIKE ${`${prefix}%`}`)
+      .orderBy(desc(tickets.ticketCode))
+      .limit(1);
+    const start = parseTicketSequence(latestRows[0]?.ticketCode, year) + 1;
+    const issued: string[] = [];
+
+    for (let index = 0; index < order.quantity; index += 1) {
+      const ticketCode = `FT-${year}-${String(start + index).padStart(6, "0")}`;
+      const ticketResult = await tx.insert(tickets).values({
+        orderId: order.id,
+        eventId: order.eventId,
+        ticketTypeId: order.ticketTypeId,
+        ticketCode,
+        qrTokenHash: `pending:${ticketCode}`,
+        status: "VALID",
+      });
+      const ticketId = Number(
+        (ticketResult as unknown as { insertId: number }).insertId
+      );
+      const qr = await input.createTicketQr(ticketId, ticketCode);
+      await tx
+        .update(tickets)
+        .set({ qrTokenHash: qr.qrTokenHash, qrImageUrl: qr.qrImageUrl })
+        .where(eq(tickets.id, ticketId));
+      issued.push(ticketCode);
+    }
+
+    await tx
+      .update(paymentProofs)
+      .set({
+        status: "APPROVED",
+        reviewedByUserId: input.reviewedByUserId,
+        reviewedAt: new Date(),
+        rejectionReason: null,
+      })
+      .where(eq(paymentProofs.id, proof.id));
+    await tx.insert(paymentLogs).values({
+      orderId: order.id,
+      provider: "bank_transfer",
+      eventType: "payment_proof.approved",
+      payload: { proofId: proof.id, ticketsIssued: issued.length },
+      verified: "true",
+    });
+
+    return { alreadyPaid: false, tickets: issued };
+  });
+}
+
 // ─────────────────────────────────────────────
 // Payment proofs
 // ─────────────────────────────────────────────
@@ -647,6 +801,112 @@ export async function recordAttendance(input: InsertAttendance) {
         deviceInfo: input.deviceInfo,
       },
     });
+}
+
+export async function checkInTicketAtomically(input: {
+  ticketId: number;
+  staffId: number;
+  deviceInfo?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+
+  return db.transaction(async tx => {
+    const ticketRows = await tx
+      .select()
+      .from(tickets)
+      .where(eq(tickets.id, input.ticketId))
+      .limit(1);
+    const ticket = ticketRows[0];
+    if (!ticket) throw new Error("Ticket not found");
+
+    const logTerminalScan = async (
+      result: "ALREADY_USED" | "CANCELLED" | "EXPIRED"
+    ) => {
+      await tx.insert(scanLogs).values({
+        ticketId: ticket.id,
+        staffId: input.staffId,
+        result,
+        deviceInfo: input.deviceInfo ?? null,
+      });
+      return {
+        ok: false as const,
+        status: result,
+        ticket: {
+          id: ticket.id,
+          code: ticket.ticketCode,
+          status: ticket.status,
+          usedAt: ticket.usedAt,
+        },
+      };
+    };
+
+    if (ticket.status === "USED") return logTerminalScan("ALREADY_USED");
+    if (ticket.status === "CANCELLED") return logTerminalScan("CANCELLED");
+    if (ticket.status === "EXPIRED") return logTerminalScan("EXPIRED");
+
+    const checkedInAt = new Date();
+    const updateResult = await tx
+      .update(tickets)
+      .set({
+        status: "USED",
+        usedAt: checkedInAt,
+        usedByUserId: input.staffId,
+      })
+      .where(and(eq(tickets.id, ticket.id), eq(tickets.status, "VALID")));
+
+    if (affectedRows(updateResult) !== 1) {
+      const freshRows = await tx
+        .select()
+        .from(tickets)
+        .where(eq(tickets.id, ticket.id))
+        .limit(1);
+      const freshTicket = freshRows[0] ?? ticket;
+      await tx.insert(scanLogs).values({
+        ticketId: ticket.id,
+        staffId: input.staffId,
+        result: "ALREADY_USED",
+        deviceInfo: input.deviceInfo ?? null,
+      });
+      return {
+        ok: false as const,
+        status: "ALREADY_USED" as const,
+        ticket: {
+          id: freshTicket.id,
+          code: freshTicket.ticketCode,
+          status: freshTicket.status,
+          usedAt: freshTicket.usedAt,
+        },
+      };
+    }
+
+    const scanResult = await tx.insert(scanLogs).values({
+      ticketId: ticket.id,
+      staffId: input.staffId,
+      result: "SUCCESS",
+      deviceInfo: input.deviceInfo ?? null,
+    });
+    const scanLogId = Number(
+      (scanResult as unknown as { insertId: number }).insertId
+    );
+    await tx.insert(attendance).values({
+      ticketId: ticket.id,
+      eventId: ticket.eventId,
+      orderId: ticket.orderId,
+      staffId: input.staffId,
+      scanLogId,
+      status: "CHECKED_IN",
+      deviceInfo: input.deviceInfo ?? null,
+      checkedInAt,
+    });
+
+    return {
+      ok: true as const,
+      status: "SUCCESS" as const,
+      ticket: { id: ticket.id, code: ticket.ticketCode },
+      checkedInAt,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────
