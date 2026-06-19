@@ -260,4 +260,18 @@ describe("orders ownership access control", () => {
       expect.objectContaining({ uploadedByUserId: 1 })
     );
   });
+
+  it("disables the mock payment webhook in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const getOrderSpy = vi.spyOn(db, "getOrderByMerchantUid");
+    const caller = appRouter.createCaller(context(null));
+
+    await expect(
+      caller.orders.paymentWebhook({
+        merchantUid: "smu_test_order",
+        paidAmount: 50000,
+      })
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    expect(getOrderSpy).not.toHaveBeenCalled();
+  });
 });

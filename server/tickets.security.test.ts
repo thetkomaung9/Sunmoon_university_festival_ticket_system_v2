@@ -118,6 +118,8 @@ function mockTicketLookup(ownerId = 1) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   resetRateLimitsForTest();
 });
 
@@ -191,27 +193,76 @@ describe("tickets.getByCode access control", () => {
 });
 
 describe("rate limiting", () => {
-  it("rejects requests after the configured limit", () => {
-    assertRateLimit({
+  it("rejects requests after the configured development limit", async () => {
+    await assertRateLimit({
       namespace: "test.lookup",
       key: "203.0.113.10",
       limit: 2,
       windowMs: 60_000,
     });
-    assertRateLimit({
+    await assertRateLimit({
       namespace: "test.lookup",
       key: "203.0.113.10",
       limit: 2,
       windowMs: 60_000,
     });
 
-    expect(() =>
+    await expect(
       assertRateLimit({
         namespace: "test.lookup",
         key: "203.0.113.10",
         limit: 2,
         windowMs: 60_000,
       })
-    ).toThrow("Too many requests. Please try again later.");
+    ).rejects.toThrow("Too many requests. Please try again later.");
+  });
+
+  it("fails closed in production when Redis rate limiting is not configured", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+
+    await expect(
+      assertRateLimit({
+        namespace: "test.lookup",
+        key: "203.0.113.10",
+        limit: 2,
+        windowMs: 60_000,
+      })
+    ).rejects.toThrow("Rate limiting is not configured");
+  });
+
+  it("uses Upstash Redis in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "secret");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ result: 1 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ result: "OK" }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await assertRateLimit({
+      namespace: "test.lookup",
+      key: "203.0.113.10",
+      limit: 2,
+      windowMs: 60_000,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://redis.example.com",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer secret",
+        }),
+      })
+    );
   });
 });
