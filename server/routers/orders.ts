@@ -1,10 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import { randomBytes } from "node:crypto";
+import QRCode from "qrcode";
 import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
 import * as db from "../db";
 import { hashToken, signQrToken } from "../qrToken";
+import { storagePut } from "../storage";
 
 function genMerchantUid(): string {
   const ts = Date.now();
@@ -12,10 +14,71 @@ function genMerchantUid(): string {
   return `smu_${ts}_${rand}`;
 }
 
-function genTicketCode(eventId: number): string {
-  const rand = randomBytes(3).toString("hex").toUpperCase();
-  const yyyy = new Date().getFullYear();
-  return `TCK-${yyyy}-${eventId}-${rand}`;
+const RECEIPT_MAX_BYTES = 10 * 1024 * 1024;
+const RECEIPT_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+function parseReceiptDataUrl(dataUrl: string) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(
+    dataUrl
+  );
+  if (!match) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Receipt must be a jpg, jpeg, png, or webp image.",
+    });
+  }
+  const [, contentType, base64] = match;
+  const buffer = Buffer.from(base64, "base64");
+  if (buffer.length > RECEIPT_MAX_BYTES) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Receipt image must be 10MB or smaller.",
+    });
+  }
+  return { buffer, contentType, extension: RECEIPT_TYPES[contentType] };
+}
+
+function assertReceiptFileName(fileName: string | undefined) {
+  if (!fileName) return;
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if (!ext || !["jpg", "jpeg", "png", "webp"].includes(ext)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Receipt file type must be jpg, jpeg, png, or webp.",
+    });
+  }
+}
+
+function parseTicketSequence(ticketCode: string | undefined, year: number) {
+  if (!ticketCode) return 0;
+  const match = new RegExp(`^FT-${year}-(\\d{6})$`).exec(ticketCode);
+  return match ? Number(match[1]) : 0;
+}
+
+async function nextTicketCodes(quantity: number) {
+  const year = new Date().getFullYear();
+  const latest = await db.getLatestTicketCodeForYear(year);
+  const start = parseTicketSequence(latest, year) + 1;
+  return Array.from(
+    { length: quantity },
+    (_, index) => `FT-${year}-${String(start + index).padStart(6, "0")}`
+  );
+}
+
+async function createQrImage(ticketCode: string, signedToken: string) {
+  const dataUrl = await QRCode.toDataURL(signedToken, {
+    width: 512,
+    margin: 1,
+    errorCorrectionLevel: "H",
+    color: { dark: "#0B2B5C", light: "#FFFFFF" },
+  });
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+  const buffer = Buffer.from(base64, "base64");
+  return storagePut(`qr-tickets/${ticketCode}.png`, buffer, "image/png");
 }
 
 export const ordersRouter = router({
@@ -117,7 +180,83 @@ export const ordersRouter = router({
       const tt = await db.getTicketType(order.ticketTypeId);
       const issuedTickets =
         order.status === "PAID" ? await db.getTicketsByOrder(order.id) : [];
-      return { order, event, ticketType: tt, tickets: issuedTickets };
+      const proofs = await db.listPendingPaymentProofs();
+      const pendingProof =
+        order.status === "PENDING_PAYMENT_VERIFICATION"
+          ? proofs.find(proof => proof.orderId === order.id) ?? null
+          : null;
+      return {
+        order,
+        event,
+        ticketType: tt,
+        tickets: issuedTickets,
+        pendingProof,
+      };
+    }),
+
+  uploadPaymentProof: publicProcedure
+    .input(
+      z.object({
+        merchantUid: z.string(),
+        receiptImageDataUrl: z.string(),
+        fileName: z.string().max(255).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      assertReceiptFileName(input.fileName);
+      const { buffer, contentType, extension } = parseReceiptDataUrl(
+        input.receiptImageDataUrl
+      );
+      const order = await db.getOrderByMerchantUid(input.merchantUid);
+      if (!order) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      }
+      if (order.status !== "PENDING") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Order is ${order.status}; receipt upload is not available.`,
+        });
+      }
+
+      const upload = await storagePut(
+        `payment-proofs/${order.merchantUid}.${extension}`,
+        buffer,
+        contentType
+      );
+      const paymentKey = `bank_${order.merchantUid}`;
+      await db.createPayment({
+        orderId: order.id,
+        provider: "bank_transfer",
+        paymentKey,
+        amount: order.totalAmount,
+        currency: "KRW",
+        status: "PENDING_VERIFICATION",
+        rawPayload: {
+          receiptImageUrl: upload.url,
+          fileName: input.fileName ?? null,
+        },
+      });
+      const payment = await db.getPaymentByKey(paymentKey);
+      const proofId = await db.createPaymentProof({
+        orderId: order.id,
+        paymentId: payment?.id ?? null,
+        uploadedByUserId: ctx.user?.id ?? null,
+        receiptImageUrl: upload.url,
+        status: "PENDING",
+      });
+      await db.setOrderStatus(order.id, "PENDING_PAYMENT_VERIFICATION");
+      await db.logPayment({
+        orderId: order.id,
+        provider: "bank_transfer",
+        eventType: "payment_proof.uploaded",
+        payload: { proofId, receiptImageUrl: upload.url },
+        verified: "true",
+      });
+      return {
+        ok: true,
+        proofId,
+        status: "PENDING_PAYMENT_VERIFICATION" as const,
+      };
     }),
 
   /**
@@ -256,6 +395,153 @@ export const ordersRouter = router({
       event: eventMap.get(o.eventId) ?? null,
     }));
   }),
+
+  adminListPaymentProofs: adminProcedure.query(async () => {
+    const proofs = await db.listPendingPaymentProofs();
+    const rows = await Promise.all(
+      proofs.map(async proof => {
+        const order = await db.getOrderById(proof.orderId);
+        const [event, ticketType] = order
+          ? await Promise.all([
+              db.getEventById(order.eventId),
+              db.getTicketType(order.ticketTypeId),
+            ])
+          : [undefined, undefined];
+        return {
+          proof,
+          order: order ?? null,
+          event: event ?? null,
+          ticketType: ticketType ?? null,
+        };
+      })
+    );
+    return rows;
+  }),
+
+  adminApprovePaymentProof: adminProcedure
+    .input(z.object({ proofId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const proof = await db.getPaymentProofById(input.proofId);
+      if (!proof) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proof not found" });
+      }
+      if (proof.status !== "PENDING") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Proof is already ${proof.status}.`,
+        });
+      }
+      const order = await db.getOrderById(proof.orderId);
+      if (!order) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      }
+      if (order.status === "PAID") {
+        const tickets = await db.getTicketsByOrder(order.id);
+        await db.setPaymentProofApproved(proof.id, ctx.user.id);
+        return {
+          ok: true,
+          alreadyPaid: true,
+          tickets: tickets.map(ticket => ticket.ticketCode),
+        };
+      }
+      if (order.status !== "PENDING_PAYMENT_VERIFICATION") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Order is ${order.status}; approval is not available.`,
+        });
+      }
+
+      const payment = proof.paymentId
+        ? undefined
+        : await db.getPaymentByKey(`bank_${order.merchantUid}`);
+      const paymentId = proof.paymentId ?? payment?.id;
+      if (paymentId) {
+        await db.setPaymentStatus(paymentId, "PAID", new Date());
+      }
+      await db.markOrderPaid(order.id, `bank_${order.merchantUid}`);
+
+      const ticketCodes = await nextTicketCodes(order.quantity);
+      const issued: string[] = [];
+      for (const ticketCode of ticketCodes) {
+        const placeholderHash = randomBytes(16).toString("hex");
+        const ticketId = await db.createTicket({
+          orderId: order.id,
+          eventId: order.eventId,
+          ticketTypeId: order.ticketTypeId,
+          ticketCode,
+          qrTokenHash: placeholderHash,
+          status: "VALID",
+        });
+        const signedToken = signQrToken({ ticketId, ticketCode });
+        const qrTokenHash = hashToken(signedToken);
+        const qrImage = await createQrImage(ticketCode, signedToken);
+        await db.updateTicketQr(ticketId, {
+          qrTokenHash,
+          qrImageUrl: qrImage.url,
+        });
+        issued.push(ticketCode);
+      }
+      await db.setPaymentProofApproved(proof.id, ctx.user.id);
+      await db.logPayment({
+        orderId: order.id,
+        provider: "bank_transfer",
+        eventType: "payment_proof.approved",
+        payload: { proofId: proof.id, ticketsIssued: issued.length },
+        verified: "true",
+      });
+      void notifyOwner({
+        title: `Payment proof approved for order #${order.id}`,
+        content: `${order.buyerName} (${order.buyerEmail}) was approved for ${issued.length} ticket(s): ${issued.join(", ")}.`,
+      }).catch(() => {});
+      return { ok: true, alreadyPaid: false, tickets: issued };
+    }),
+
+  adminRejectPaymentProof: adminProcedure
+    .input(
+      z.object({
+        proofId: z.number(),
+        reason: z.string().min(1).max(1000),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const proof = await db.getPaymentProofById(input.proofId);
+      if (!proof) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proof not found" });
+      }
+      if (proof.status !== "PENDING") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Proof is already ${proof.status}.`,
+        });
+      }
+      const order = await db.getOrderById(proof.orderId);
+      if (!order) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      }
+      if (proof.paymentId) {
+        await db.setPaymentStatus(proof.paymentId, "REJECTED", null);
+      } else {
+        const payment = await db.getPaymentByKey(`bank_${order.merchantUid}`);
+        if (payment) await db.setPaymentStatus(payment.id, "REJECTED", null);
+      }
+      await db.setPaymentProofRejected(proof.id, {
+        reviewedByUserId: ctx.user.id,
+        rejectionReason: input.reason.trim(),
+      });
+      await db.setOrderStatus(order.id, "PENDING");
+      await db.logPayment({
+        orderId: order.id,
+        provider: "bank_transfer",
+        eventType: "payment_proof.rejected",
+        payload: { proofId: proof.id, reason: input.reason.trim() },
+        verified: "false",
+      });
+      void notifyOwner({
+        title: `Payment proof rejected for order #${order.id}`,
+        content: `${order.buyerName} (${order.buyerEmail}) needs to upload a new receipt. Reason: ${input.reason.trim()}`,
+      }).catch(() => {});
+      return { ok: true, status: "REJECTED" as const };
+    }),
 
   adminCancelOrder: adminProcedure
     .input(
