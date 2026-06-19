@@ -121,6 +121,7 @@ export const orders = mysqlTable("orders", {
   totalAmount: int("total_amount").notNull(),
   status: mysqlEnum("status", [
     "PENDING",
+    "PENDING_PAYMENT_VERIFICATION",
     "PAID",
     "CANCELLED",
     "REFUNDED",
@@ -153,6 +154,9 @@ export const payments = mysqlTable(
     currency: varchar("currency", { length: 16 }).default("KRW").notNull(),
     status: mysqlEnum("status", [
       "PENDING",
+      "PENDING_VERIFICATION",
+      "PAID",
+      "REJECTED",
       "SUCCEEDED",
       "FAILED",
       "REFUNDED",
@@ -176,6 +180,27 @@ export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;
 
 /**
+ * Bank transfer receipt uploads awaiting admin review.
+ */
+export const paymentProofs = mysqlTable("payment_proofs", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("order_id").notNull(),
+  paymentId: int("payment_id"),
+  uploadedByUserId: int("uploaded_by_user_id"),
+  receiptImageUrl: text("receipt_image_url").notNull(),
+  status: mysqlEnum("status", ["PENDING", "APPROVED", "REJECTED"])
+    .default("PENDING")
+    .notNull(),
+  rejectionReason: text("rejection_reason"),
+  reviewedByUserId: int("reviewed_by_user_id"),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PaymentProof = typeof paymentProofs.$inferSelect;
+export type InsertPaymentProof = typeof paymentProofs.$inferInsert;
+
+/**
  * Issued tickets — generated only after a verified payment.
  * `ticketCode` is the user-visible code (e.g., TCK-2026-000123).
  * `qrTokenHash` stores hash of the signed QR token (no raw secret in DB).
@@ -187,6 +212,7 @@ export const tickets = mysqlTable("tickets", {
   ticketTypeId: int("ticket_type_id").notNull(),
   ticketCode: varchar("ticket_code", { length: 64 }).notNull().unique(),
   qrTokenHash: varchar("qr_token_hash", { length: 128 }).notNull().unique(),
+  qrImageUrl: text("qr_image_url"),
   status: mysqlEnum("status", ["VALID", "USED", "CANCELLED", "EXPIRED"])
     .default("VALID")
     .notNull(),
