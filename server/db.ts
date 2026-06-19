@@ -1,17 +1,21 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
+  attendance,
   eventCategories,
   events,
+  InsertAttendance,
   InsertEvent,
   InsertEventCategory,
   InsertOrder,
+  InsertPayment,
   InsertPaymentLog,
   InsertScanLog,
   InsertTicket,
   InsertTicketType,
   InsertUser,
   orders,
+  payments,
   paymentLogs,
   scanLogs,
   ticketTypes,
@@ -348,6 +352,22 @@ export async function markOrderPaid(orderId: number, paymentKey: string) {
     .where(eq(orders.id, orderId));
 }
 
+export async function createPayment(input: InsertPayment) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .insert(payments)
+    .values(input)
+    .onDuplicateKeyUpdate({
+      set: {
+        amount: input.amount,
+        status: input.status,
+        rawPayload: input.rawPayload,
+        paidAt: input.paidAt,
+      },
+    });
+}
+
 export async function setOrderStatus(
   orderId: number,
   status: "CANCELLED" | "REFUNDED" | "EXPIRED"
@@ -463,6 +483,26 @@ export async function logPayment(input: InsertPaymentLog) {
   const db = await getDb();
   if (!db) return;
   await db.insert(paymentLogs).values(input);
+}
+
+// ─────────────────────────────────────────────
+// Attendance
+// ─────────────────────────────────────────────
+
+export async function recordAttendance(input: InsertAttendance) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .insert(attendance)
+    .values(input)
+    .onDuplicateKeyUpdate({
+      set: {
+        staffId: input.staffId,
+        scanLogId: input.scanLogId,
+        status: "CHECKED_IN",
+        deviceInfo: input.deviceInfo,
+      },
+    });
 }
 
 // ─────────────────────────────────────────────

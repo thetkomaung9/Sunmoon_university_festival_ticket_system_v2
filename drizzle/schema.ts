@@ -139,6 +139,43 @@ export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
 
 /**
+ * Payment records for provider transactions.
+ * payment_logs keeps raw webhook audit events; payments is the order ledger.
+ */
+export const payments = mysqlTable(
+  "payments",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orderId: int("order_id").notNull(),
+    provider: varchar("provider", { length: 64 }).notNull(),
+    paymentKey: varchar("payment_key", { length: 191 }).notNull(),
+    amount: int("amount").notNull(),
+    currency: varchar("currency", { length: 16 }).default("KRW").notNull(),
+    status: mysqlEnum("status", [
+      "PENDING",
+      "SUCCEEDED",
+      "FAILED",
+      "REFUNDED",
+      "CANCELLED",
+    ])
+      .default("PENDING")
+      .notNull(),
+    rawPayload: json("raw_payload"),
+    paidAt: timestamp("paid_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    paymentKeyIdx: uniqueIndex("payments_payment_key_unique").on(
+      table.paymentKey
+    ),
+  })
+);
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = typeof payments.$inferInsert;
+
+/**
  * Issued tickets — generated only after a verified payment.
  * `ticketCode` is the user-visible code (e.g., TCK-2026-000123).
  * `qrTokenHash` stores hash of the signed QR token (no raw secret in DB).
@@ -176,6 +213,34 @@ export const paymentLogs = mysqlTable("payment_logs", {
 
 export type PaymentLog = typeof paymentLogs.$inferSelect;
 export type InsertPaymentLog = typeof paymentLogs.$inferInsert;
+
+/**
+ * Successful check-ins. scan_logs stores every scan attempt; attendance stores
+ * the attendee list with one accepted check-in per ticket.
+ */
+export const attendance = mysqlTable(
+  "attendance",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    ticketId: int("ticket_id").notNull(),
+    eventId: int("event_id").notNull(),
+    orderId: int("order_id").notNull(),
+    staffId: int("staff_id").notNull(),
+    scanLogId: int("scan_log_id"),
+    status: mysqlEnum("status", ["CHECKED_IN", "REVOKED"])
+      .default("CHECKED_IN")
+      .notNull(),
+    deviceInfo: text("device_info"),
+    checkedInAt: timestamp("checked_in_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  table => ({
+    ticketIdx: uniqueIndex("attendance_ticket_id_unique").on(table.ticketId),
+  })
+);
+
+export type Attendance = typeof attendance.$inferSelect;
+export type InsertAttendance = typeof attendance.$inferInsert;
 
 /**
  * Scan logs - one row per scan attempt at the gate.
