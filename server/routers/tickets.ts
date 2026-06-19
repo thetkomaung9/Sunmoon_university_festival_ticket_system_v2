@@ -2,11 +2,11 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   adminProcedure,
-  publicProcedure,
+  protectedProcedure,
   router,
   staffMutationProcedure,
-  staffProcedure,
 } from "../_core/trpc";
+import { assertIpRateLimit, assertUserRateLimit } from "../_core/rateLimit";
 import * as db from "../db";
 import { hashToken, signQrToken, verifyQrToken } from "../qrToken";
 
@@ -27,19 +27,77 @@ async function resolveTicketFromToken(token: string) {
   return { ticket: ticketByHash, payload };
 }
 
+type TicketForView = NonNullable<Awaited<ReturnType<typeof db.getTicketByCode>>>;
+type OrderForView = NonNullable<Awaited<ReturnType<typeof db.getOrderById>>>;
+type EventForView = NonNullable<Awaited<ReturnType<typeof db.getEventById>>>;
+type TicketTypeForView = NonNullable<Awaited<ReturnType<typeof db.getTicketType>>>;
+
+function isStaffOrAdmin(user: { role: string }) {
+  return user.role === "admin" || user.role === "staff";
+}
+
+function assertTicketAccess(order: OrderForView | undefined, user: { id: number; role: string }) {
+  if (isStaffOrAdmin(user)) return;
+  if (!order || order.userId !== user.id) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ticket access denied" });
+  }
+}
+
+function serializeTicketForView(ticket: TicketForView) {
+  return {
+    id: ticket.id,
+    ticketCode: ticket.ticketCode,
+    status: ticket.status,
+    usedAt: ticket.usedAt,
+    qrImageUrl: ticket.qrImageUrl,
+  };
+}
+
+function serializeEventForView(event: EventForView | undefined) {
+  return event
+    ? {
+        id: event.id,
+        title: event.title,
+        titleMm: event.titleMm,
+        venue: event.venue,
+        startsAt: event.startsAt,
+      }
+    : null;
+}
+
+function serializeTicketTypeForView(ticketType: TicketTypeForView | undefined) {
+  return ticketType ? { name: ticketType.name } : null;
+}
+
+function serializeOrderForTicketView(order: OrderForView | undefined) {
+  return order
+    ? {
+        id: order.id,
+        buyerName: order.buyerName,
+        quantity: order.quantity,
+      }
+    : null;
+}
+
 export const ticketsRouter = router({
   /**
-   * PUBLIC: Buyer ticket-view endpoint (by ticket code).
+   * Authenticated ticket-view endpoint (by ticket code).
+   * Owners can view their own ticket; staff/admin can view any ticket.
    * Returns enough info to render the ticket card + the issued signed QR token,
-   * but never exposes any other buyer's data. The token returned here is the
-   * same one whose hash is stored in `tickets.qrTokenHash`.
+   * without exposing raw DB rows or QR token hashes.
    */
-  getByCode: publicProcedure.input(z.object({ code: z.string() })).query(async ({ input }) => {
+  getByCode: protectedProcedure.input(z.object({ code: z.string() })).query(async ({ input, ctx }) => {
+    assertIpRateLimit(ctx, {
+      namespace: "tickets.getByCode",
+      limit: 30,
+      windowMs: 60_000,
+    });
     const ticket = await db.getTicketByCode(input.code);
     if (!ticket) throw new TRPCError({ code: "NOT_FOUND", message: "Ticket not found" });
+    const order = await db.getOrderById(ticket.orderId);
+    assertTicketAccess(order, ctx.user);
     const event = await db.getEventById(ticket.eventId);
     const ticketType = await db.getTicketType(ticket.ticketTypeId);
-    const order = await db.getOrderById(ticket.orderId);
     // Re-derive the issued token. Because token issuance writes the hash into
     // tickets.qrTokenHash and the QR is rendered server-side from that token,
     // we look up the issued token via the stored hash by re-signing then
@@ -63,16 +121,10 @@ export const ticketsRouter = router({
       }
     }
     return {
-      ticket,
-      event,
-      ticketType,
-      order: order
-        ? {
-            id: order.id,
-            buyerName: order.buyerName,
-            quantity: order.quantity,
-          }
-        : null,
+      ticket: serializeTicketForView(ticket),
+      event: serializeEventForView(event),
+      ticketType: serializeTicketTypeForView(ticketType),
+      order: serializeOrderForTicketView(order),
       qrToken: token,
     };
   }),
@@ -84,6 +136,11 @@ export const ticketsRouter = router({
   scannerVerify: staffMutationProcedure
     .input(z.object({ qrToken: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      assertUserRateLimit(ctx.user.id, {
+        namespace: "tickets.scannerVerify",
+        limit: 60,
+        windowMs: 60_000,
+      });
       const { ticket } = await resolveTicketFromToken(input.qrToken);
       if (!ticket) {
         await db.logScan({
@@ -119,6 +176,11 @@ export const ticketsRouter = router({
   scannerCheckIn: staffMutationProcedure
     .input(z.object({ qrToken: z.string(), deviceInfo: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
+      assertUserRateLimit(ctx.user.id, {
+        namespace: "tickets.scannerCheckIn",
+        limit: 60,
+        windowMs: 60_000,
+      });
       const { ticket } = await resolveTicketFromToken(input.qrToken);
       if (!ticket) {
         await db.logScan({
