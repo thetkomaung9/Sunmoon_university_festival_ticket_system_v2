@@ -92,7 +92,10 @@ type OrderForCheckout = NonNullable<Awaited<ReturnType<typeof db.getOrderByMerch
 type PaymentProofForCheckout = NonNullable<Awaited<ReturnType<typeof db.getLatestPaymentProofByOrder>>>;
 type TicketForCheckout = Awaited<ReturnType<typeof db.getTicketsByOrder>>[number];
 
-function assertOrderAccess(order: OrderForCheckout, user: NonNullable<Parameters<typeof isAdminUser>[0]>) {
+function assertOrderAccess(
+  order: OrderForCheckout,
+  user: { id: number; role: string }
+) {
   if (isAdminUser(user)) return;
   if (order.userId !== user.id) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Order access denied" });
