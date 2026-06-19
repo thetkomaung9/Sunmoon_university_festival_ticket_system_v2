@@ -1,5 +1,4 @@
 import { TRPCError } from "@trpc/server";
-import { ENV } from "./env";
 import type { TrpcContext } from "./context";
 
 type RateLimitInput = {
@@ -67,13 +66,15 @@ function assertMemoryRateLimit(input: RateLimitInput) {
 }
 
 async function upstashCommand<T>(command: unknown[]): Promise<T> {
-  if (!ENV.upstashRedisRestUrl || !ENV.upstashRedisRestToken) {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
     unavailableError();
   }
-  const response = await fetch(ENV.upstashRedisRestUrl, {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${ENV.upstashRedisRestToken}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(command),
@@ -94,7 +95,7 @@ async function assertRedisRateLimit(input: RateLimitInput) {
 }
 
 export async function assertRateLimit(input: RateLimitInput) {
-  if (ENV.isProduction) {
+  if (process.env.NODE_ENV === "production") {
     await assertRedisRateLimit(input);
     return;
   }
