@@ -364,6 +364,12 @@ export const ordersRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      if (process.env.NODE_ENV === "production") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Mock payment webhook is disabled in production.",
+        });
+      }
       const order = await db.getOrderByMerchantUid(input.merchantUid);
       if (!order) {
         await db.logPayment({
@@ -502,79 +508,38 @@ export const ordersRouter = router({
   adminApprovePaymentProof: adminMutationProcedure
     .input(z.object({ proofId: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const proof = await db.getPaymentProofById(input.proofId);
-      if (!proof) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Proof not found" });
-      }
-      if (proof.status !== "PENDING") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Proof is already ${proof.status}.`,
+      try {
+        const result = await db.approvePaymentProofAndIssueTickets({
+          proofId: input.proofId,
+          reviewedByUserId: ctx.user.id,
+          createTicketQr: async (ticketId, ticketCode) => {
+            const signedToken = signQrToken({ ticketId, ticketCode });
+            const qrTokenHash = hashToken(signedToken);
+            const qrImage = await createQrImage(ticketCode, signedToken);
+            return { qrTokenHash, qrImageUrl: qrImage.url };
+          },
         });
-      }
-      const order = await db.getOrderById(proof.orderId);
-      if (!order) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
-      }
-      if (order.status === "PAID") {
-        const tickets = await db.getTicketsByOrder(order.id);
-        await db.setPaymentProofApproved(proof.id, ctx.user.id);
+        const proof = await db.getPaymentProofById(input.proofId);
+        const order = proof ? await db.getOrderById(proof.orderId) : undefined;
+        if (order) {
+          void notifyOwner({
+            title: `Payment proof approved for order #${order.id}`,
+            content: `${order.buyerName} (${order.buyerEmail}) was approved for ${result.tickets.length} ticket(s): ${result.tickets.join(", ")}.`,
+          }).catch(() => {});
+        }
         return {
           ok: true,
-          alreadyPaid: true,
-          tickets: tickets.map(ticket => ticket.ticketCode),
+          alreadyPaid: result.alreadyPaid,
+          tickets: result.tickets,
         };
-      }
-      if (order.status !== "PENDING_PAYMENT_VERIFICATION") {
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Payment approval failed";
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Order is ${order.status}; approval is not available.`,
+          code: message.includes("not found") ? "NOT_FOUND" : "BAD_REQUEST",
+          message,
         });
       }
-
-      const payment = proof.paymentId
-        ? undefined
-        : await db.getPaymentByKey(`bank_${order.merchantUid}`);
-      const paymentId = proof.paymentId ?? payment?.id;
-      if (paymentId) {
-        await db.setPaymentStatus(paymentId, "PAID", new Date());
-      }
-      await db.markOrderPaid(order.id, `bank_${order.merchantUid}`);
-
-      const ticketCodes = await nextTicketCodes(order.quantity);
-      const issued: string[] = [];
-      for (const ticketCode of ticketCodes) {
-        const placeholderHash = randomBytes(16).toString("hex");
-        const ticketId = await db.createTicket({
-          orderId: order.id,
-          eventId: order.eventId,
-          ticketTypeId: order.ticketTypeId,
-          ticketCode,
-          qrTokenHash: placeholderHash,
-          status: "VALID",
-        });
-        const signedToken = signQrToken({ ticketId, ticketCode });
-        const qrTokenHash = hashToken(signedToken);
-        const qrImage = await createQrImage(ticketCode, signedToken);
-        await db.updateTicketQr(ticketId, {
-          qrTokenHash,
-          qrImageUrl: qrImage.url,
-        });
-        issued.push(ticketCode);
-      }
-      await db.setPaymentProofApproved(proof.id, ctx.user.id);
-      await db.logPayment({
-        orderId: order.id,
-        provider: "bank_transfer",
-        eventType: "payment_proof.approved",
-        payload: { proofId: proof.id, ticketsIssued: issued.length },
-        verified: "true",
-      });
-      void notifyOwner({
-        title: `Payment proof approved for order #${order.id}`,
-        content: `${order.buyerName} (${order.buyerEmail}) was approved for ${issued.length} ticket(s): ${issued.join(", ")}.`,
-      }).catch(() => {});
-      return { ok: true, alreadyPaid: false, tickets: issued };
     }),
 
   adminRejectPaymentProof: adminMutationProcedure
