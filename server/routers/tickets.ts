@@ -151,8 +151,9 @@ export const ticketsRouter = router({
         return { ok: false, status: "EXPIRED" as const };
       }
       // status === VALID
+      const checkedInAt = new Date();
       await db.markTicketUsed(ticket.id, ctx.user.id);
-      await db.logScan({
+      const scanLogId = await db.logScan({
         ticketId: ticket.id,
         staffId: ctx.user.id,
         result: "SUCCESS",
@@ -163,7 +164,7 @@ export const ticketsRouter = router({
         eventId: ticket.eventId,
         orderId: ticket.orderId,
         staffId: ctx.user.id,
-        scanLogId: null,
+        scanLogId: scanLogId ?? null,
         status: "CHECKED_IN",
         deviceInfo: input.deviceInfo ?? null,
       });
@@ -177,6 +178,7 @@ export const ticketsRouter = router({
         buyer: order ? { name: order.buyerName } : null,
         event: event ? { title: event.title } : null,
         ticketType: tt ? { name: tt.name } : null,
+        checkedInAt,
       };
     }),
 
@@ -197,7 +199,14 @@ export const ticketsRouter = router({
       const cancelled = allTickets.filter((t) => t.status === "CANCELLED").length;
       return {
         event,
-        summary: { total, used, valid, cancelled, attendanceRate: total ? used / total : 0 },
+        summary: {
+          total,
+          used,
+          valid,
+          remaining: valid,
+          cancelled,
+          attendanceRate: total ? used / total : 0,
+        },
         tickets: allTickets,
         scanLogs,
       };
