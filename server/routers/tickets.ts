@@ -198,7 +198,16 @@ export const ticketsRouter = router({
           result: "ALREADY_USED",
           deviceInfo: input.deviceInfo ?? null,
         });
-        return { ok: false, status: "ALREADY_USED" as const, ticket };
+        return {
+          ok: false,
+          status: "ALREADY_USED" as const,
+          ticket: {
+            id: ticket.id,
+            code: ticket.ticketCode,
+            status: ticket.status,
+            usedAt: ticket.usedAt,
+          },
+        };
       }
       if (ticket.status === "CANCELLED") {
         await db.logScan({
