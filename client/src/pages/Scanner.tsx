@@ -5,6 +5,8 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
+  Camera,
+  CameraOff,
   CheckCircle2,
   Clipboard,
   Loader2,
@@ -13,6 +15,7 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import jsQR from "jsqr";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
@@ -36,20 +39,40 @@ type ScanResult =
       eventTitle?: string;
       ticketCode?: string;
       ticketType?: string;
+      checkedInAt?: Date | string;
     }
   | { kind: "rejected"; reason: string; ticketCode?: string };
+
+type BarcodeDetectorLike = {
+  detect: (source: CanvasImageSource) => Promise<Array<{ rawValue: string }>>;
+};
+
+type BarcodeDetectorConstructor = new (options: {
+  formats: string[];
+}) => BarcodeDetectorLike;
 
 export default function ScannerPage() {
   const { user, loading, isAuthenticated } = useAuth();
   const [token, setToken] = useState("");
   const [result, setResult] = useState<ScanResult>({ kind: "idle" });
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const scanLockedRef = useRef(false);
 
   const verify = trpc.tickets.scannerVerify.useMutation();
   const checkIn = trpc.tickets.scannerCheckIn.useMutation();
 
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    return () => stopCamera();
   }, []);
 
   if (loading) {
@@ -131,12 +154,12 @@ export default function ScannerPage() {
     }
   }
 
-  async function handleCheckIn() {
-    if (!token.trim()) return;
+  async function handleCheckIn(scannedToken = token.trim()) {
+    if (!scannedToken.trim()) return;
     setResult({ kind: "loading" });
     try {
       const r = await checkIn.mutateAsync({
-        qrToken: token.trim(),
+        qrToken: scannedToken.trim(),
         deviceInfo: navigator.userAgent,
       });
       if (r.status === "SUCCESS") {
@@ -146,6 +169,7 @@ export default function ScannerPage() {
           eventTitle: r.event?.title,
           ticketCode: r.ticket?.code,
           ticketType: r.ticketType?.name,
+          checkedInAt: r.checkedInAt,
         });
         toast.success("Ticket marked as USED.");
       } else {
@@ -153,6 +177,92 @@ export default function ScannerPage() {
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Check-in failed");
+    }
+  }
+
+  function stopCamera() {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+    scanLockedRef.current = false;
+    setCameraActive(false);
+  }
+
+  async function decodeVideoFrame(detector: BarcodeDetectorLike | null) {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      return "";
+    }
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) return "";
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return "";
+    ctx.drawImage(video, 0, 0, width, height);
+
+    if (detector) {
+      const codes = await detector.detect(canvas).catch(() => []);
+      return codes[0]?.rawValue ?? "";
+    }
+
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const code = jsQR(imageData.data, width, height);
+    return code?.data ?? "";
+  }
+
+  async function startCamera() {
+    setCameraError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera access is not supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
+
+      const BarcodeDetectorCtor = (
+        window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }
+      ).BarcodeDetector;
+      const detector = BarcodeDetectorCtor
+        ? new BarcodeDetectorCtor({ formats: ["qr_code"] })
+        : null;
+
+      const scanFrame = async () => {
+        if (!streamRef.current) return;
+        if (!scanLockedRef.current) {
+          const scanned = await decodeVideoFrame(detector);
+          if (scanned) {
+            scanLockedRef.current = true;
+            setToken(scanned);
+            stopCamera();
+            await handleCheckIn(scanned);
+            return;
+          }
+        }
+        rafRef.current = requestAnimationFrame(scanFrame);
+      };
+      rafRef.current = requestAnimationFrame(scanFrame);
+    } catch (error) {
+      setCameraError(
+        error instanceof Error ? error.message : "Could not open camera."
+      );
+      stopCamera();
     }
   }
 
@@ -183,6 +293,48 @@ export default function ScannerPage() {
         </p>
 
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
+          <div className="mb-5 rounded-md overflow-hidden bg-secondary">
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              className={cn(
+                "w-full aspect-video object-cover bg-black",
+                !cameraActive && "hidden"
+              )}
+            />
+            {!cameraActive && (
+              <div className="aspect-video flex items-center justify-center text-center px-6 text-sm text-foreground/60">
+                Camera scanner is ready. Start camera to scan a QR ticket.
+              </div>
+            )}
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+
+          <div className="mb-5 grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={startCamera}
+              disabled={cameraActive || verify.isPending || checkIn.isPending}
+              className="bg-white h-11"
+            >
+              <Camera className="h-4 w-4" /> Start camera
+            </Button>
+            <Button
+              variant="outline"
+              onClick={stopCamera}
+              disabled={!cameraActive}
+              className="bg-white h-11"
+            >
+              <CameraOff className="h-4 w-4" /> Stop
+            </Button>
+          </div>
+          {cameraError && (
+            <div className="mb-5 rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-900">
+              {cameraError}
+            </div>
+          )}
+
           <label className="text-xs uppercase tracking-wider text-foreground/60">
             Paste or scan QR token
           </label>
