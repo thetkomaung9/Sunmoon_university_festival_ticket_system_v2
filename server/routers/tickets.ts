@@ -87,7 +87,7 @@ export const ticketsRouter = router({
    * without exposing raw DB rows or QR token hashes.
    */
   getByCode: protectedProcedure.input(z.object({ code: z.string() })).query(async ({ input, ctx }) => {
-    assertIpRateLimit(ctx, {
+    await assertIpRateLimit(ctx, {
       namespace: "tickets.getByCode",
       limit: 30,
       windowMs: 60_000,
@@ -136,7 +136,7 @@ export const ticketsRouter = router({
   scannerVerify: staffMutationProcedure
     .input(z.object({ qrToken: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      assertUserRateLimit(ctx.user.id, {
+      await assertUserRateLimit(ctx.user.id, {
         namespace: "tickets.scannerVerify",
         limit: 60,
         windowMs: 60_000,
@@ -176,7 +176,7 @@ export const ticketsRouter = router({
   scannerCheckIn: staffMutationProcedure
     .input(z.object({ qrToken: z.string(), deviceInfo: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
-      assertUserRateLimit(ctx.user.id, {
+      await assertUserRateLimit(ctx.user.id, {
         namespace: "tickets.scannerCheckIn",
         limit: 60,
         windowMs: 60_000,

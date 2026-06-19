@@ -238,7 +238,7 @@ export const ordersRouter = router({
   getByMerchantUid: protectedProcedure
     .input(z.object({ merchantUid: z.string() }))
     .query(async ({ input, ctx }) => {
-      assertIpRateLimit(ctx, {
+      await assertIpRateLimit(ctx, {
         namespace: "orders.getByMerchantUid",
         limit: 30,
         windowMs: 60_000,
@@ -273,7 +273,7 @@ export const ordersRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      assertUserRateLimit(ctx.user.id, {
+      await assertUserRateLimit(ctx.user.id, {
         namespace: "orders.uploadPaymentProof",
         limit: 10,
         windowMs: 60_000,

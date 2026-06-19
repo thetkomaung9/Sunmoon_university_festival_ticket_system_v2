@@ -71,7 +71,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        assertIpRateLimit(ctx, {
+        await assertIpRateLimit(ctx, {
           namespace: "auth.login",
           limit: 10,
           windowMs: 60_000,
