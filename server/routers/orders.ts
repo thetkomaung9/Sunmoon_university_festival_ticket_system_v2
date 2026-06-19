@@ -344,8 +344,8 @@ export const ordersRouter = router({
       });
 
       const issued: { code: string; token: string }[] = [];
-      for (let i = 0; i < order.quantity; i++) {
-        const ticketCode = genTicketCode(order.eventId);
+      const ticketCodes = await nextTicketCodes(order.quantity);
+      for (const ticketCode of ticketCodes) {
         // Insert with a placeholder hash, sign token bound to ticketId, then update hash.
         const tempToken = randomBytes(16).toString("hex");
         const ticketId = await db.createTicket({
