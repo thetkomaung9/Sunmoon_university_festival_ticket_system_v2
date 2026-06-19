@@ -197,7 +197,6 @@ describe("orders ownership access control", () => {
   });
 
   it("rejects payment proof uploads from non-owners before storing the receipt", async () => {
-    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("FRONTEND_URL", "https://festival.example.com");
     vi.spyOn(db, "getOrderByMerchantUid").mockResolvedValue({
       ...order(1),
@@ -217,7 +216,6 @@ describe("orders ownership access control", () => {
   });
 
   it("allows the authenticated owner to upload a payment proof", async () => {
-    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("FRONTEND_URL", "https://festival.example.com");
     vi.spyOn(db, "getOrderByMerchantUid").mockResolvedValue({
       ...order(1),
