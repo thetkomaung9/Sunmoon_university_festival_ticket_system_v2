@@ -2,12 +2,13 @@ import AdminLayout from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-import { Mail, RotateCcw, X } from "lucide-react";
+import { Check, Eye, Mail, RotateCcw, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 const STATUS_STYLE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700",
+  PENDING_PAYMENT_VERIFICATION: "bg-blue-100 text-blue-700",
   PAID: "bg-emerald-100 text-emerald-700",
   CANCELLED: "bg-rose-100 text-rose-700",
   REFUNDED: "bg-slate-200 text-slate-700",
@@ -17,12 +18,27 @@ const STATUS_STYLE: Record<string, string> = {
 export default function AdminOrders() {
   const utils = trpc.useUtils();
   const { data: orders } = trpc.orders.adminListOrders.useQuery();
+  const { data: proofs } = trpc.orders.adminListPaymentProofs.useQuery();
   const cancel = trpc.orders.adminCancelOrder.useMutation({
     onSuccess: () => utils.orders.adminListOrders.invalidate(),
   });
   const resend = trpc.orders.adminResendTickets.useMutation();
+  const approve = trpc.orders.adminApprovePaymentProof.useMutation({
+    onSuccess: () => {
+      utils.orders.adminListOrders.invalidate();
+      utils.orders.adminListPaymentProofs.invalidate();
+    },
+  });
+  const reject = trpc.orders.adminRejectPaymentProof.useMutation({
+    onSuccess: () => {
+      utils.orders.adminListOrders.invalidate();
+      utils.orders.adminListPaymentProofs.invalidate();
+    },
+  });
 
-  const [filter, setFilter] = useState<"ALL" | "PENDING" | "PAID" | "CANCELLED" | "REFUNDED">("ALL");
+  const [filter, setFilter] = useState<
+    "ALL" | "PENDING" | "PENDING_PAYMENT_VERIFICATION" | "PAID" | "CANCELLED" | "REFUNDED"
+  >("ALL");
 
   const filtered = (orders ?? []).filter((o) => filter === "ALL" || o.status === filter);
 
@@ -43,11 +59,30 @@ export default function AdminOrders() {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
   }
+  async function handleApproveProof(proofId: number) {
+    if (!confirm("Approve this payment proof and issue QR ticket(s)?")) return;
+    try {
+      const result = await approve.mutateAsync({ proofId });
+      toast.success(`Payment approved. Issued ${result.tickets.length} ticket(s).`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+  async function handleRejectProof(proofId: number) {
+    const reason = prompt("Why is this receipt rejected?");
+    if (!reason?.trim()) return;
+    try {
+      await reject.mutateAsync({ proofId, reason: reason.trim() });
+      toast.success("Payment proof rejected");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
 
   return (
     <AdminLayout title="Orders" subtitle="All orders and payment records">
       <div className="flex items-center gap-2 mb-4 overflow-x-auto">
-        {["ALL", "PENDING", "PAID", "CANCELLED", "REFUNDED"].map((k) => (
+        {["ALL", "PENDING", "PENDING_PAYMENT_VERIFICATION", "PAID", "CANCELLED", "REFUNDED"].map((k) => (
           <button
             key={k}
             onClick={() => setFilter(k as never)}
@@ -62,6 +97,80 @@ export default function AdminOrders() {
           </button>
         ))}
       </div>
+
+      {(proofs ?? []).length > 0 && (
+        <div className="rounded-lg border border-border bg-white overflow-hidden mb-6">
+          <div className="px-4 py-3 bg-secondary">
+            <h2 className="font-serif text-lg font-bold text-[var(--sunmoon-navy)]">
+              Pending payment proofs
+            </h2>
+            <p className="text-xs text-foreground/60">
+              Review bank transfer receipts before issuing QR tickets.
+            </p>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-foreground/60">
+              <tr>
+                <th className="px-4 py-3 text-left">Receipt</th>
+                <th className="px-4 py-3 text-left">Buyer</th>
+                <th className="px-4 py-3 text-left">Event</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {(proofs ?? []).map(({ proof, order, event, ticketType }) => (
+                <tr key={proof.id}>
+                  <td className="px-4 py-3">
+                    <div className="font-mono text-[11px] text-foreground/70">
+                      Proof #{proof.id}
+                    </div>
+                    <div className="text-[10px] text-foreground/50">
+                      {new Date(proof.createdAt).toLocaleString()}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{order?.buyerName ?? "—"}</div>
+                    <div className="text-xs text-foreground/60">{order?.buyerEmail ?? "—"}</div>
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    <div className="line-clamp-1">{event?.title ?? "—"}</div>
+                    <div className="text-foreground/50">{ticketType?.name ?? "—"}</div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold">
+                    ₩ {(order?.totalAmount ?? 0).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-1">
+                    <Button size="sm" variant="outline" className="bg-white" asChild>
+                      <a href={proof.receiptImageUrl} target="_blank" rel="noreferrer">
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-white"
+                      onClick={() => handleApproveProof(proof.id)}
+                      disabled={approve.isPending}
+                    >
+                      <Check className="h-3.5 w-3.5" /> Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-white"
+                      onClick={() => handleRejectProof(proof.id)}
+                      disabled={reject.isPending}
+                    >
+                      <X className="h-3.5 w-3.5" /> Reject
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="rounded-lg border border-border bg-white overflow-hidden">
         <table className="w-full text-sm">
