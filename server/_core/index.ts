@@ -37,7 +37,7 @@ function registerCors(app: express.Express) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
       res.setHeader("Access-Control-Allow-Credentials", "true");
-      res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, x-trpc-source");
+      res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, x-trpc-source, x-csrf-token");
       res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     }
 
