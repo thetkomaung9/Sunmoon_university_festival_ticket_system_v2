@@ -9,6 +9,7 @@ import {
   InsertEventCategory,
   InsertOrder,
   InsertPayment,
+  InsertPaymentProof,
   InsertPaymentLog,
   InsertScanLog,
   InsertTicket,
@@ -16,6 +17,7 @@ import {
   InsertUser,
   orders,
   payments,
+  paymentProofs,
   paymentLogs,
   scanLogs,
   ticketTypes,
@@ -368,9 +370,47 @@ export async function createPayment(input: InsertPayment) {
     });
 }
 
+export async function getPaymentByKey(paymentKey: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const r = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.paymentKey, paymentKey))
+    .limit(1);
+  return r[0];
+}
+
+export async function setPaymentStatus(
+  paymentId: number,
+  status:
+    | "PENDING"
+    | "PENDING_VERIFICATION"
+    | "PAID"
+    | "REJECTED"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "REFUNDED"
+    | "CANCELLED",
+  paidAt?: Date | null
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(payments)
+    .set({ status, paidAt })
+    .where(eq(payments.id, paymentId));
+}
+
 export async function setOrderStatus(
   orderId: number,
-  status: "CANCELLED" | "REFUNDED" | "EXPIRED"
+  status:
+    | "PENDING"
+    | "PENDING_PAYMENT_VERIFICATION"
+    | "PAID"
+    | "CANCELLED"
+    | "REFUNDED"
+    | "EXPIRED"
 ) {
   const db = await getDb();
   if (!db) return;
@@ -382,6 +422,7 @@ export async function setOrderStatus(
         status === "CANCELLED" || status === "REFUNDED"
           ? new Date()
           : undefined,
+      paidAt: status === "PAID" ? new Date() : undefined,
     })
     .where(eq(orders.id, orderId));
 }
@@ -473,6 +514,97 @@ export async function updateTicketHash(ticketId: number, qrTokenHash: string) {
   const db = await getDb();
   if (!db) return;
   await db.update(tickets).set({ qrTokenHash }).where(eq(tickets.id, ticketId));
+}
+
+export async function updateTicketQr(
+  ticketId: number,
+  input: { qrTokenHash: string; qrImageUrl: string }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(tickets)
+    .set({ qrTokenHash: input.qrTokenHash, qrImageUrl: input.qrImageUrl })
+    .where(eq(tickets.id, ticketId));
+}
+
+export async function getLatestTicketCodeForYear(year: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const prefix = `FT-${year}-`;
+  const r = await db
+    .select({ ticketCode: tickets.ticketCode })
+    .from(tickets)
+    .where(sql`${tickets.ticketCode} LIKE ${`${prefix}%`}`)
+    .orderBy(desc(tickets.ticketCode))
+    .limit(1);
+  return r[0]?.ticketCode;
+}
+
+// ─────────────────────────────────────────────
+// Payment proofs
+// ─────────────────────────────────────────────
+
+export async function createPaymentProof(input: InsertPaymentProof) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(paymentProofs).values(input);
+  return Number((result as unknown as { insertId: number }).insertId);
+}
+
+export async function getPaymentProofById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const r = await db
+    .select()
+    .from(paymentProofs)
+    .where(eq(paymentProofs.id, id))
+    .limit(1);
+  return r[0];
+}
+
+export async function listPendingPaymentProofs() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(paymentProofs)
+    .where(eq(paymentProofs.status, "PENDING"))
+    .orderBy(desc(paymentProofs.createdAt));
+}
+
+export async function setPaymentProofApproved(
+  proofId: number,
+  reviewedByUserId: number
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(paymentProofs)
+    .set({
+      status: "APPROVED",
+      reviewedByUserId,
+      reviewedAt: new Date(),
+      rejectionReason: null,
+    })
+    .where(eq(paymentProofs.id, proofId));
+}
+
+export async function setPaymentProofRejected(
+  proofId: number,
+  input: { reviewedByUserId: number; rejectionReason: string }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(paymentProofs)
+    .set({
+      status: "REJECTED",
+      reviewedByUserId: input.reviewedByUserId,
+      reviewedAt: new Date(),
+      rejectionReason: input.rejectionReason,
+    })
+    .where(eq(paymentProofs.id, proofId));
 }
 
 // ─────────────────────────────────────────────
