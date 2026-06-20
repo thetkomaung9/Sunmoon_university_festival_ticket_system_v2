@@ -311,6 +311,22 @@ export async function createPendingOrderWithReservation(input: InsertOrder) {
   }
 
   return db.transaction(async tx => {
+    const ticketTypeRows = await tx
+      .select({
+        id: ticketTypes.id,
+        stock: ticketTypes.stock,
+        soldCount: ticketTypes.soldCount,
+        status: ticketTypes.status,
+      })
+      .from(ticketTypes)
+      .where(eq(ticketTypes.id, input.ticketTypeId))
+      .limit(1);
+    console.info("[TicketReservationDebug] before reserve", {
+      ticketTypeId: input.ticketTypeId,
+      quantity: input.quantity,
+      ticketType: ticketTypeRows[0] ?? null,
+    });
+
     const reserveResult = await tx
       .update(ticketTypes)
       .set({ soldCount: sql`${ticketTypes.soldCount} + ${input.quantity}` })
@@ -321,10 +337,14 @@ export async function createPendingOrderWithReservation(input: InsertOrder) {
           sql`${ticketTypes.soldCount} + ${input.quantity} <= ${ticketTypes.stock}`
         )
       );
-    const affectedRows = Number(
-      (reserveResult as unknown as { affectedRows?: number }).affectedRows ?? 0
-    );
-    if (affectedRows === 0) {
+    const affected = affectedRows(reserveResult);
+    console.info("[TicketReservationDebug] reserve result", {
+      ticketTypeId: input.ticketTypeId,
+      quantity: input.quantity,
+      affectedRows: affected,
+      resultShape: Array.isArray(reserveResult) ? "mysql2-tuple" : typeof reserveResult,
+    });
+    if (affected === 0) {
       throw new Error("Not enough tickets remaining");
     }
 
