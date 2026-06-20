@@ -32,6 +32,10 @@ import { createMysqlPoolOptions } from "./_core/mysqlConfig";
 let _db: MySql2Database<Record<string, unknown>> | null = null;
 let _pool: mysql.Pool | null = null;
 
+export function isDatabaseConfigured() {
+  return Boolean(process.env.DATABASE_URL);
+}
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {

@@ -58,13 +58,6 @@ export default function AdminOverview() {
         />
       </div>
 
-      {(events?.length ?? 0) > 0 && (orders?.length ?? 0) === 0 && (
-        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          The admin panel is showing the imported Sunmoon catalog. Connect a
-          database and run the seed migration to make these records editable.
-        </div>
-      )}
-
       <div className="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
         <section className="xl:col-span-2 rounded-lg border border-border bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">

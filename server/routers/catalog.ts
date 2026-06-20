@@ -16,7 +16,11 @@ const ticketTypeStatus = z.enum(["ACTIVE", "SOLD_OUT", "HIDDEN"]);
 
 async function attachCategories<T extends { categoryId: number }>(events: T[]) {
   const categories = await db.listAllCategories();
-  const sourceCategories = categories.length > 0 ? categories : demoCategories;
+  const sourceCategories = db.isDatabaseConfigured()
+    ? categories
+    : categories.length > 0
+      ? categories
+      : demoCategories;
   const categoryMap = new Map(
     sourceCategories.map(category => [category.id, category])
   );
@@ -29,6 +33,7 @@ async function attachCategories<T extends { categoryId: number }>(events: T[]) {
 export const catalogRouter = router({
   listCategories: publicProcedure.query(async () => {
     const categories = await db.listActiveCategories();
+    if (db.isDatabaseConfigured()) return categories;
     return categories.length > 0 ? categories : demoCategories;
   }),
 
@@ -38,6 +43,11 @@ export const catalogRouter = router({
       const dbCategory = input?.categorySlug
         ? await db.getCategoryBySlug(input.categorySlug)
         : undefined;
+      if (db.isDatabaseConfigured()) {
+        if (input?.categorySlug && !dbCategory) return [];
+        const dbEvents = await db.listPublishedEvents(dbCategory?.id);
+        return attachCategories(dbEvents);
+      }
       const category =
         dbCategory ??
         demoCategories.find(item => item.slug === input?.categorySlug);
@@ -58,6 +68,21 @@ export const catalogRouter = router({
     .input(z.object({ slug: z.string() }))
     .query(async ({ input }) => {
       const event = await db.getEventBySlug(input.slug);
+      if (db.isDatabaseConfigured()) {
+        if (!event || event.status !== "PUBLISHED") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
+        const [categories, ticketTypes] = await Promise.all([
+          db.listAllCategories(),
+          db.listTicketTypesByEvent(event.id),
+        ]);
+        const category =
+          categories.find(item => item.id === event.categoryId) ?? null;
+        return { event, category, ticketTypes };
+      }
       if (!event || event.status !== "PUBLISHED") {
         const demoEvent = demoEvents.find(
           item => item.slug === input.slug && item.status === "PUBLISHED"
@@ -86,6 +111,7 @@ export const catalogRouter = router({
 
   adminListCategories: adminProcedure.query(async () => {
     const categories = await db.listAllCategories();
+    if (db.isDatabaseConfigured()) return categories;
     return categories.length > 0 ? categories : demoCategories;
   }),
 
@@ -128,6 +154,7 @@ export const catalogRouter = router({
 
   adminListEvents: adminProcedure.query(async () => {
     const events = await db.listAllEvents();
+    if (db.isDatabaseConfigured()) return attachCategories(events);
     return attachCategories(events.length > 0 ? events : demoEvents);
   }),
 
@@ -182,6 +209,7 @@ export const catalogRouter = router({
     .input(z.object({ eventId: z.number() }))
     .query(async ({ input }) => {
       const ticketTypes = await db.listTicketTypesByEvent(input.eventId);
+      if (db.isDatabaseConfigured()) return ticketTypes;
       return ticketTypes.length > 0
         ? ticketTypes
         : demoTicketTypes.filter(item => item.eventId === input.eventId);
