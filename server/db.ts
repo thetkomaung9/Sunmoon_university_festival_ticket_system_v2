@@ -322,9 +322,15 @@ export async function createPendingOrderWithReservation(input: InsertOrder) {
       .where(eq(ticketTypes.id, input.ticketTypeId))
       .limit(1);
     console.info("[TicketReservationDebug] before reserve", {
+      eventId: input.eventId,
       ticketTypeId: input.ticketTypeId,
       quantity: input.quantity,
-      ticketType: ticketTypeRows[0] ?? null,
+      stock: ticketTypeRows[0]?.stock ?? null,
+      soldCount: ticketTypeRows[0]?.soldCount ?? null,
+      remaining: ticketTypeRows[0]
+        ? ticketTypeRows[0].stock - ticketTypeRows[0].soldCount
+        : null,
+      status: ticketTypeRows[0]?.status ?? null,
     });
 
     const reserveResult = await tx
@@ -339,6 +345,7 @@ export async function createPendingOrderWithReservation(input: InsertOrder) {
       );
     const affected = affectedRows(reserveResult);
     console.info("[TicketReservationDebug] reserve result", {
+      eventId: input.eventId,
       ticketTypeId: input.ticketTypeId,
       quantity: input.quantity,
       affectedRows: affected,
@@ -574,6 +581,9 @@ function parseTicketSequence(ticketCode: string | undefined, year: number) {
 }
 
 function affectedRows(result: unknown) {
+  if (Array.isArray(result)) {
+    return Number((result[0] as { affectedRows?: number })?.affectedRows ?? 0);
+  }
   return Number((result as { affectedRows?: number }).affectedRows ?? 0);
 }
 
