@@ -164,20 +164,52 @@ export const ordersRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const event = await db.getEventById(input.eventId);
+      const now = Date.now();
+      const tt = await db.getTicketType(input.ticketTypeId);
+      console.info("[OrderCreateDebug] validation context", {
+        eventId: input.eventId,
+        ticketTypeId: input.ticketTypeId,
+        quantity: input.quantity,
+        currentServerTimeMs: now,
+        currentServerTimeIso: new Date(now).toISOString(),
+        event: event
+          ? {
+              id: event.id,
+              status: event.status,
+              startsAt: event.startsAt,
+              startsAtIso: new Date(event.startsAt).toISOString(),
+              endsAt: event.endsAt,
+              endsAtIso: new Date(event.endsAt).toISOString(),
+              saleStartsAt: event.saleStartsAt,
+              saleStartsAtIso: new Date(event.saleStartsAt).toISOString(),
+              saleEndsAt: event.saleEndsAt,
+              saleEndsAtIso: new Date(event.saleEndsAt).toISOString(),
+            }
+          : null,
+        ticketType: tt
+          ? {
+              id: tt.id,
+              eventId: tt.eventId,
+              status: tt.status,
+              stock: tt.stock,
+              soldCount: tt.soldCount,
+              remaining: tt.stock - tt.soldCount,
+              maxPerUser: tt.maxPerUser,
+            }
+          : null,
+      });
       if (!event || event.status !== "PUBLISHED") {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Event not available",
         });
       }
-      const now = Date.now();
       if (now < event.saleStartsAt || now > event.saleEndsAt) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Ticket sale window is closed",
         });
       }
-      const tt = await db.getTicketType(input.ticketTypeId);
       if (!tt || tt.eventId !== event.id) {
         throw new TRPCError({
           code: "BAD_REQUEST",

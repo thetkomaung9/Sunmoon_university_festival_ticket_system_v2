@@ -21,7 +21,13 @@ import { toast } from "sonner";
 const TT_NAMES = ["Regular", "VIP", "Early Bird", "Student"] as const;
 
 function fmtDate(ms: number) {
-  return new Date(ms).toISOString().slice(0, 16);
+  const date = new Date(ms);
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function toMs(value: string) {
+  return new Date(value).getTime();
 }
 
 export default function AdminEvents() {
@@ -36,6 +42,13 @@ export default function AdminEvents() {
   });
 
   const [open, setOpen] = useState(false);
+  const [scheduleOpenFor, setScheduleOpenFor] = useState<number | null>(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    startsAt: "",
+    endsAt: "",
+    saleStartsAt: "",
+    saleEndsAt: "",
+  });
   const [form, setForm] = useState({
     categoryId: "",
     slug: "",
@@ -60,10 +73,10 @@ export default function AdminEvents() {
         description: form.description || undefined,
         venue: form.venue,
         posterUrl: form.posterUrl || undefined,
-        startsAt: new Date(form.startsAt).getTime(),
-        endsAt: new Date(form.endsAt).getTime(),
-        saleStartsAt: new Date(form.saleStartsAt).getTime(),
-        saleEndsAt: new Date(form.saleEndsAt).getTime(),
+        startsAt: toMs(form.startsAt),
+        endsAt: toMs(form.endsAt),
+        saleStartsAt: toMs(form.saleStartsAt),
+        saleEndsAt: toMs(form.saleEndsAt),
         status: "PUBLISHED",
       });
       toast.success("Event created");
@@ -77,6 +90,39 @@ export default function AdminEvents() {
     try {
       await updateEvt.mutateAsync({ id, status });
       toast.success("Updated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  function openScheduleEditor(event: {
+    id: number;
+    startsAt: number;
+    endsAt: number;
+    saleStartsAt: number;
+    saleEndsAt: number;
+  }) {
+    setScheduleOpenFor(event.id);
+    setScheduleForm({
+      startsAt: fmtDate(event.startsAt),
+      endsAt: fmtDate(event.endsAt),
+      saleStartsAt: fmtDate(event.saleStartsAt),
+      saleEndsAt: fmtDate(event.saleEndsAt),
+    });
+  }
+
+  async function saveSchedule() {
+    if (!scheduleOpenFor) return;
+    try {
+      await updateEvt.mutateAsync({
+        id: scheduleOpenFor,
+        startsAt: toMs(scheduleForm.startsAt),
+        endsAt: toMs(scheduleForm.endsAt),
+        saleStartsAt: toMs(scheduleForm.saleStartsAt),
+        saleEndsAt: toMs(scheduleForm.saleEndsAt),
+      });
+      toast.success("Schedule updated");
+      setScheduleOpenFor(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
@@ -231,6 +277,99 @@ export default function AdminEvents() {
                   </Select>
                 </td>
                 <td className="px-4 py-3 text-right space-x-1">
+                  <Dialog
+                    open={scheduleOpenFor === e.id}
+                    onOpenChange={(next) => {
+                      if (next) openScheduleEditor(e);
+                      else setScheduleOpenFor(null);
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white"
+                        onClick={() => openScheduleEditor(e)}
+                      >
+                        Schedule
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Edit Schedule</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Starts at</Label>
+                          <Input
+                            type="datetime-local"
+                            value={scheduleForm.startsAt}
+                            onChange={(event) =>
+                              setScheduleForm({
+                                ...scheduleForm,
+                                startsAt: event.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>Ends at</Label>
+                          <Input
+                            type="datetime-local"
+                            value={scheduleForm.endsAt}
+                            onChange={(event) =>
+                              setScheduleForm({
+                                ...scheduleForm,
+                                endsAt: event.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>Sale starts</Label>
+                          <Input
+                            type="datetime-local"
+                            value={scheduleForm.saleStartsAt}
+                            onChange={(event) =>
+                              setScheduleForm({
+                                ...scheduleForm,
+                                saleStartsAt: event.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>Sale ends</Label>
+                          <Input
+                            type="datetime-local"
+                            value={scheduleForm.saleEndsAt}
+                            onChange={(event) =>
+                              setScheduleForm({
+                                ...scheduleForm,
+                                saleEndsAt: event.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          className="bg-white"
+                          onClick={() => setScheduleOpenFor(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={saveSchedule}
+                          disabled={updateEvt.isPending}
+                          className="bg-[var(--sunmoon-navy)]"
+                        >
+                          Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                   <Button asChild variant="outline" size="sm" className="bg-white">
                     <Link href={`/admin/events/${e.id}`}>
                       <Settings className="h-3.5 w-3.5" />
