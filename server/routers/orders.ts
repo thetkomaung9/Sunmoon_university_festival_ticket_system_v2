@@ -204,7 +204,13 @@ export const ordersRouter = router({
           message: "Event not available",
         });
       }
-      if (now < event.saleStartsAt || now > event.saleEndsAt) {
+      if (now < event.saleStartsAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ticket sale window is not open yet",
+        });
+      }
+      if (now > event.saleEndsAt) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Ticket sale window is closed",
