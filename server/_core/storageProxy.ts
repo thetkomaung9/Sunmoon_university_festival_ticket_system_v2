@@ -1,6 +1,10 @@
 import type { Express } from "express";
+import { createReadStream } from "node:fs";
+import { access } from "node:fs/promises";
+import path from "node:path";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
+import { getLocalStoragePath } from "../storage";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
 
@@ -70,7 +74,7 @@ export function registerStorageProxy(app: Express) {
     }
 
     const forgeBaseUrl = getForgeBaseUrl();
-    if (!forgeBaseUrl) {
+    if (!forgeBaseUrl && ENV.isProduction) {
       res.status(500).send("Storage proxy not configured");
       return;
     }
@@ -80,6 +84,24 @@ export function registerStorageProxy(app: Express) {
       const allowed = await canAccessStorageKey(key, user);
       if (!allowed) {
         res.status(user ? 403 : 401).send("Storage access denied");
+        return;
+      }
+
+      if (!forgeBaseUrl) {
+        const filePath = getLocalStoragePath(key);
+        await access(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+        const contentType =
+          ext === ".png"
+            ? "image/png"
+            : ext === ".jpg" || ext === ".jpeg"
+              ? "image/jpeg"
+              : ext === ".webp"
+                ? "image/webp"
+                : "application/octet-stream";
+        res.set("Cache-Control", "no-store");
+        res.type(contentType);
+        createReadStream(filePath).pipe(res);
         return;
       }
 
