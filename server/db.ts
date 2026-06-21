@@ -519,6 +519,24 @@ export async function getTicketsByOrder(orderId: number) {
   return db.select().from(tickets).where(eq(tickets.orderId, orderId));
 }
 
+export async function listTicketsByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      ticket: tickets,
+      order: orders,
+      event: events,
+      ticketType: ticketTypes,
+    })
+    .from(tickets)
+    .innerJoin(orders, eq(orders.id, tickets.orderId))
+    .innerJoin(events, eq(events.id, tickets.eventId))
+    .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(tickets.issuedAt));
+}
+
 export async function getTicketsByEvent(eventId: number) {
   const db = await getDb();
   if (!db) return [];

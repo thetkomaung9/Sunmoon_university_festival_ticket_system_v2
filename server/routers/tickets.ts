@@ -81,6 +81,25 @@ function serializeOrderForTicketView(order: OrderForView | undefined) {
 
 export const ticketsRouter = router({
   /**
+   * Authenticated buyer dashboard list.
+   * Returns only tickets owned by the current user's paid orders.
+   */
+  myTickets: protectedProcedure.query(async ({ ctx }) => {
+    await assertUserRateLimit(ctx.user.id, {
+      namespace: "tickets.myTickets",
+      limit: 60,
+      windowMs: 60_000,
+    });
+    const rows = await db.listTicketsByUser(ctx.user.id);
+    return rows.map(row => ({
+      ticket: serializeTicketForView(row.ticket),
+      event: serializeEventForView(row.event),
+      ticketType: serializeTicketTypeForView(row.ticketType),
+      order: serializeOrderForTicketView(row.order),
+    }));
+  }),
+
+  /**
    * Authenticated ticket-view endpoint (by ticket code).
    * Owners can view their own ticket; staff/admin can view any ticket.
    * Returns enough info to render the ticket card + the issued signed QR token,
