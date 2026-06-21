@@ -16,6 +16,7 @@ export default function CheckoutPage() {
   const [, params] = useRoute<{ merchantUid: string }>("/checkout/:merchantUid");
   const [, navigate] = useLocation();
   const merchantUid = params?.merchantUid ?? "";
+  console.log("merchantUid from route", merchantUid);
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.orders.getByMerchantUid.useQuery(
     { merchantUid },
