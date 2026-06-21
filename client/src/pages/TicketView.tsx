@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle2,
+  Download,
   Loader2,
   MapPin,
   Printer,
@@ -85,6 +86,75 @@ export default function TicketViewPage() {
   const style = STATUS_STYLE[ticket.status] ?? STATUS_STYLE.VALID;
   const StatusIcon = style.icon;
   const startsAt = event ? new Date(event.startsAt) : null;
+
+  async function handleDownloadTicket() {
+    const qrMarkup = qrToken
+      ? `<img alt="QR code" src="${await QRCode.toDataURL(qrToken, {
+          width: 420,
+          margin: 1,
+          errorCorrectionLevel: "H",
+          color: { dark: "#0B2B5C", light: "#FFFFFF" },
+        })}" />`
+      : ticket.qrImageUrl
+        ? `<img alt="QR code" src="${ticket.qrImageUrl}" />`
+        : `<div class="missing">QR unavailable</div>`;
+
+    const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${ticket.ticketCode}</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; color: #10233f; background: #f6f7fb; }
+    .ticket { width: 520px; margin: 32px auto; background: white; border: 2px solid #0b2b5c; border-radius: 14px; overflow: hidden; }
+    .head { padding: 22px 26px; background: #0b2b5c; color: white; display: flex; justify-content: space-between; align-items: center; }
+    .brand { font-size: 18px; font-weight: 700; }
+    .status { font-size: 12px; border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 6px 10px; }
+    .body { padding: 26px; }
+    h1 { margin: 0 0 6px; font-size: 26px; }
+    .muted { color: #64748b; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+    .label { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .value { margin-top: 4px; font-weight: 700; }
+    .qr { text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 24px; }
+    .qr img { width: 320px; height: 320px; object-fit: contain; }
+    .code { margin-top: 12px; font-family: monospace; font-size: 16px; font-weight: 700; }
+    .missing { padding: 80px 0; color: #9ca3af; border: 1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="ticket">
+    <div class="head">
+      <div class="brand">Sunmoon University Myanmar Team</div>
+      <div class="status">${ticket.status}</div>
+    </div>
+    <div class="body">
+      <h1>${event?.title ?? "Event Ticket"}</h1>
+      <div class="muted">Official Event Ticket</div>
+      <div class="grid">
+        <div><div class="label">Holder</div><div class="value">${order?.buyerName ?? "-"}</div></div>
+        <div><div class="label">Ticket Type</div><div class="value">${ticketType?.name ?? "-"}</div></div>
+        <div><div class="label">Date</div><div class="value">${startsAt ? startsAt.toLocaleString() : "-"}</div></div>
+        <div><div class="label">Venue</div><div class="value">${event?.venue ?? "-"}</div></div>
+      </div>
+      <div class="qr">
+        ${qrMarkup}
+        <div class="code">${ticket.ticketCode}</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${ticket.ticketCode}.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <SiteLayout>
@@ -200,14 +270,23 @@ export default function TicketViewPage() {
               )}
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.print()}
-              className="mt-6 w-full bg-white"
-            >
-              <Printer className="h-4 w-4" /> Print ticket
-            </Button>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                className="bg-white"
+              >
+                <Printer className="h-4 w-4" /> Print ticket
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDownloadTicket}
+                className="bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]"
+              >
+                <Download className="h-4 w-4" /> Download ticket
+              </Button>
+            </div>
           </div>
         </div>
       </div>
