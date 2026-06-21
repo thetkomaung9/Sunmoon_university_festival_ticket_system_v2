@@ -734,9 +734,7 @@ export async function approvePaymentProofAndIssueTickets(input: {
         qrTokenHash: `pending:${ticketCode}`,
         status: "VALID",
       });
-      const ticketId = Number(
-        insertId(ticketResult)
-      );
+      const ticketId = insertId(ticketResult);
       console.log("[TICKET CREATED]", ticketId);
       const qr = await input.createTicketQr(ticketId, ticketCode);
       console.log("[QR GENERATED]", ticketCode);
@@ -959,9 +957,7 @@ export async function checkInTicketAtomically(input: {
       result: "SUCCESS",
       deviceInfo: input.deviceInfo ?? null,
     });
-    const scanLogId = Number(
-      insertId(scanResult)
-    );
+    const scanLogId = insertId(scanResult);
     await tx.insert(attendance).values({
       ticketId: ticket.id,
       eventId: ticket.eventId,
