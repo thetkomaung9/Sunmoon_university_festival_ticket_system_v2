@@ -368,7 +368,11 @@ export const ordersRouter = router({
         orderId: order.id,
         provider: "bank_transfer",
         eventType: "payment_proof.uploaded",
-        payload: { proofId, receiptImageUrl: upload.url },
+        payload: {
+          proofId,
+          screenshotUrl: upload.url,
+          receiptImageUrl: upload.url,
+        },
         verified: "true",
       });
       return {

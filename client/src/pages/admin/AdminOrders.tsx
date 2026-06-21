@@ -1,5 +1,12 @@
 import AdminLayout from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Check, Eye, Mail, RotateCcw, X } from "lucide-react";
@@ -39,6 +46,11 @@ export default function AdminOrders() {
   const [filter, setFilter] = useState<
     "ALL" | "PENDING" | "PENDING_PAYMENT_VERIFICATION" | "PAID" | "CANCELLED" | "REFUNDED"
   >("ALL");
+  const [preview, setPreview] = useState<{
+    url: string;
+    buyer: string;
+    proofId: number;
+  } | null>(null);
 
   const filtered = (orders ?? []).filter((o) => filter === "ALL" || o.status === filter);
 
@@ -141,10 +153,19 @@ export default function AdminOrders() {
                     ₩ {(order?.totalAmount ?? 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-right space-x-1">
-                    <Button size="sm" variant="outline" className="bg-white" asChild>
-                      <a href={proof.receiptImageUrl} target="_blank" rel="noreferrer">
-                        <Eye className="h-3.5 w-3.5" /> View
-                      </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-white"
+                      onClick={() =>
+                        setPreview({
+                          url: proof.receiptImageUrl,
+                          buyer: order?.buyerName ?? "Unknown buyer",
+                          proofId: proof.id,
+                        })
+                      }
+                    >
+                      <Eye className="h-3.5 w-3.5" /> Preview
                     </Button>
                     <Button
                       size="sm"
@@ -259,6 +280,25 @@ export default function AdminOrders() {
           </tbody>
         </table>
       </div>
+      <Dialog open={Boolean(preview)} onOpenChange={(open) => !open && setPreview(null)}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Payment screenshot preview</DialogTitle>
+            <DialogDescription>
+              Proof #{preview?.proofId} · {preview?.buyer}
+            </DialogDescription>
+          </DialogHeader>
+          {preview && (
+            <div className="rounded-md border border-border bg-secondary p-2">
+              <img
+                src={preview.url}
+                alt={`Payment proof ${preview.proofId}`}
+                className="max-h-[70vh] w-full object-contain rounded bg-white"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
