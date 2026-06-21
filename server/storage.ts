@@ -2,7 +2,11 @@
 // Uploads via Forge Server presigned URL to S3 (PUT direct).
 // Downloads return /manus-storage/{key} paths served via 307 redirect.
 
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { ENV } from "./_core/env";
+
+export const LOCAL_STORAGE_ROOT = path.resolve(process.cwd(), ".local-storage");
 
 function getForgeConfig() {
   const forgeUrl = ENV.forgeApiUrl;
@@ -18,7 +22,11 @@ function getForgeConfig() {
 }
 
 function normalizeKey(relKey: string): string {
-  return relKey.replace(/^\/+/, "");
+  const key = relKey.replace(/^\/+/, "");
+  if (key.includes("..") || path.isAbsolute(key)) {
+    throw new Error("Invalid storage key");
+  }
+  return key;
 }
 
 function appendHashSuffix(relKey: string): string {
@@ -28,13 +36,44 @@ function appendHashSuffix(relKey: string): string {
   return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
 }
 
+function hasForgeConfig() {
+  return Boolean(ENV.forgeApiUrl && ENV.forgeApiKey);
+}
+
+export function getLocalStoragePath(key: string): string {
+  const safeKey = normalizeKey(key);
+  const filePath = path.resolve(LOCAL_STORAGE_ROOT, safeKey);
+  if (!filePath.startsWith(`${LOCAL_STORAGE_ROOT}${path.sep}`)) {
+    throw new Error("Invalid storage key");
+  }
+  return filePath;
+}
+
+async function localStoragePut(
+  key: string,
+  data: Buffer | Uint8Array | string
+): Promise<{ key: string; url: string }> {
+  const filePath = getLocalStoragePath(key);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, data);
+  return { key, url: `/manus-storage/${key}` };
+}
+
 export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
   const key = appendHashSuffix(normalizeKey(relKey));
+
+  if (!hasForgeConfig() && !ENV.isProduction) {
+    console.warn(
+      "[Storage] BUILT_IN_FORGE_API_URL/KEY not configured; using local development storage."
+    );
+    return localStoragePut(key, data);
+  }
+
+  const { forgeUrl, forgeKey } = getForgeConfig();
 
   // 1. Get presigned PUT URL from Forge
   const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
