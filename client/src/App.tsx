@@ -17,6 +17,7 @@ import CheckoutPage from "./pages/Checkout";
 import EventDetailPage from "./pages/EventDetail";
 import EventsPage from "./pages/Events";
 import Home from "./pages/Home";
+import MyTicketsPage from "./pages/MyTickets";
 import ScannerPage from "./pages/Scanner";
 import TicketViewPage from "./pages/TicketView";
 
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/events" component={EventsPage} />
       <Route path="/events/:slug" component={EventDetailPage} />
       <Route path="/checkout/:merchantUid" component={CheckoutPage} />
+      <Route path="/my-tickets" component={MyTicketsPage} />
       <Route path="/ticket/:code" component={TicketViewPage} />
       <Route path="/scanner" component={ScannerPage} />
       <Route path="/admin" component={AdminOverview} />

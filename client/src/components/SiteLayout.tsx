@@ -115,6 +115,14 @@ export default function SiteLayout({
           </nav>
 
           <div className="hidden md:flex items-center gap-2">
+            {isAuthenticated && (
+              <Button asChild variant="outline" size="sm" className="bg-white">
+                <Link href="/my-tickets">
+                  <Ticket className="h-4 w-4" />
+                  My Tickets
+                </Link>
+              </Button>
+            )}
             {isStaff && (
               <Button asChild variant="outline" size="sm" className="bg-white">
                 <Link href="/scanner">
@@ -183,6 +191,15 @@ export default function SiteLayout({
                 </Link>
               ))}
               <div className="h-px bg-border my-2" />
+              {isAuthenticated && (
+                <Link
+                  href="/my-tickets"
+                  onClick={() => setOpen(false)}
+                  className="px-3 py-2.5 rounded-md text-sm font-medium hover:bg-secondary flex items-center gap-2"
+                >
+                  <Ticket className="h-4 w-4" /> My Tickets
+                </Link>
+              )}
               {isStaff && (
                 <Link
                   href="/scanner"
