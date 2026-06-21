@@ -282,7 +282,6 @@ export const ordersRouter = router({
         windowMs: 60_000,
       });
       const order = await db.getOrderByMerchantUid(input.merchantUid);
-      console.log("order returned", order);
       if (!order)
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
       assertOrderAccess(order, ctx.user);
