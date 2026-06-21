@@ -32,6 +32,17 @@ import { createMysqlPoolOptions } from "./_core/mysqlConfig";
 let _db: MySql2Database<Record<string, unknown>> | null = null;
 let _pool: mysql.Pool | null = null;
 
+function insertId(result: unknown) {
+  const value = Array.isArray(result)
+    ? (result[0] as { insertId?: number | string | bigint })?.insertId
+    : (result as { insertId?: number | string | bigint })?.insertId;
+  const id = Number(value);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error("Insert did not return a valid insertId");
+  }
+  return id;
+}
+
 export function isDatabaseConfigured() {
   return Boolean(process.env.DATABASE_URL);
 }
@@ -175,7 +186,7 @@ export async function createCategory(input: InsertEventCategory) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   const result = await db.insert(eventCategories).values(input);
-  return Number((result as unknown as { insertId: number }).insertId);
+  return insertId(result);
 }
 
 export async function updateCategory(
@@ -228,7 +239,7 @@ export async function createEvent(input: InsertEvent) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   const result = await db.insert(events).values(input);
-  return Number((result as unknown as { insertId: number }).insertId);
+  return insertId(result);
 }
 
 export async function updateEvent(id: number, patch: Partial<InsertEvent>) {
@@ -266,7 +277,7 @@ export async function createTicketType(input: InsertTicketType) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   const result = await db.insert(ticketTypes).values(input);
-  return Number((result as unknown as { insertId: number }).insertId);
+  return insertId(result);
 }
 
 export async function updateTicketType(
@@ -304,7 +315,7 @@ export async function createOrder(input: InsertOrder) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   const result = await db.insert(orders).values(input);
-  return Number((result as unknown as { insertId: number }).insertId);
+  return insertId(result);
 }
 
 export async function createPendingOrderWithReservation(input: InsertOrder) {
@@ -360,7 +371,7 @@ export async function createPendingOrderWithReservation(input: InsertOrder) {
     }
 
     const result = await tx.insert(orders).values(input);
-    return Number((result as unknown as { insertId: number }).insertId);
+    return insertId(result);
   });
 }
 
@@ -488,7 +499,7 @@ export async function createTicket(input: InsertTicket) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   const result = await db.insert(tickets).values(input);
-  return Number((result as unknown as { insertId: number }).insertId);
+  return insertId(result);
 }
 
 export async function getTicketByCode(code: string) {
@@ -724,7 +735,7 @@ export async function approvePaymentProofAndIssueTickets(input: {
         status: "VALID",
       });
       const ticketId = Number(
-        (ticketResult as unknown as { insertId: number }).insertId
+        insertId(ticketResult)
       );
       console.log("[TICKET CREATED]", ticketId);
       const qr = await input.createTicketQr(ticketId, ticketCode);
@@ -765,7 +776,7 @@ export async function createPaymentProof(input: InsertPaymentProof) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   const result = await db.insert(paymentProofs).values(input);
-  return Number((result as unknown as { insertId: number }).insertId);
+  return insertId(result);
 }
 
 export async function getPaymentProofById(id: number) {
@@ -949,7 +960,7 @@ export async function checkInTicketAtomically(input: {
       deviceInfo: input.deviceInfo ?? null,
     });
     const scanLogId = Number(
-      (scanResult as unknown as { insertId: number }).insertId
+      insertId(scanResult)
     );
     await tx.insert(attendance).values({
       ticketId: ticket.id,
@@ -979,7 +990,7 @@ export async function logScan(input: InsertScanLog) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.insert(scanLogs).values(input);
-  return Number((result as unknown as { insertId: number }).insertId);
+  return insertId(result);
 }
 
 export async function listScanLogsByEvent(eventId: number) {
