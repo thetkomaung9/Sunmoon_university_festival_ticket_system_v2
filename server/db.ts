@@ -691,6 +691,7 @@ export async function approvePaymentProofAndIssueTickets(input: {
       .update(payments)
       .set({ status: "PAID", paidAt: new Date() })
       .where(eq(payments.id, payment.id));
+    console.log("[PAYMENT APPROVED]", order.id);
     await tx
       .update(orders)
       .set({
@@ -699,6 +700,7 @@ export async function approvePaymentProofAndIssueTickets(input: {
         paidAt: new Date(),
       })
       .where(eq(orders.id, order.id));
+    console.log("[ORDER STATUS UPDATED]", order.id);
 
     const year = new Date().getFullYear();
     const prefix = `FT-${year}-`;
@@ -724,7 +726,9 @@ export async function approvePaymentProofAndIssueTickets(input: {
       const ticketId = Number(
         (ticketResult as unknown as { insertId: number }).insertId
       );
+      console.log("[TICKET CREATED]", ticketId);
       const qr = await input.createTicketQr(ticketId, ticketCode);
+      console.log("[QR GENERATED]", ticketCode);
       await tx
         .update(tickets)
         .set({ qrTokenHash: qr.qrTokenHash, qrImageUrl: qr.qrImageUrl })
