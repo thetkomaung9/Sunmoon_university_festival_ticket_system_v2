@@ -64,7 +64,7 @@ export default function CheckoutPage() {
               {tickets.map((t) => (
                 <Link
                   key={t.id}
-                  href={`/ticket/${t.ticketCode}`}
+                  href={`/ticket/${t.ticketCode}?email=${encodeURIComponent(order.buyerEmail)}`}
                   className="block rounded-md border border-border p-4 text-left hover:border-[var(--sunmoon-navy)] transition"
                 >
                   <div className="text-[10px] uppercase tracking-wider text-foreground/50">

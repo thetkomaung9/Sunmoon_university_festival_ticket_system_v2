@@ -51,7 +51,14 @@ const STATUS_MM: Record<string, string> = {
 export default function TicketViewPage() {
   const [, params] = useRoute<{ code: string }>("/ticket/:code");
   const code = params?.code ?? "";
-  const { data, isLoading } = trpc.tickets.getByCode.useQuery({ code }, { enabled: !!code });
+  const buyerEmail =
+    typeof window === "undefined"
+      ? undefined
+      : new URLSearchParams(window.location.search).get("email") ?? undefined;
+  const { data, isLoading } = trpc.tickets.getByCode.useQuery(
+    { code, buyerEmail },
+    { enabled: !!code }
+  );
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -77,7 +84,9 @@ export default function TicketViewPage() {
   if (!data) {
     return (
       <SiteLayout>
-        <div className="container py-20 text-center text-foreground/60">Ticket not found.</div>
+        <div className="container py-20 text-center text-foreground/60">
+          Ticket not found. Use the ticket lookup page with your buyer email.
+        </div>
       </SiteLayout>
     );
   }
