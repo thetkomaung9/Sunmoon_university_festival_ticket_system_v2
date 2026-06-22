@@ -3,44 +3,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Lock, UserPlus } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 
 export function SignInPage() {
-  return <AuthForm mode="signin" />;
+  return <AuthForm />;
 }
 
 export function SignUpPage() {
-  return <AuthForm mode="signup" />;
+  return <AuthForm />;
 }
 
-function AuthForm({ mode }: { mode: "signin" | "signup" }) {
+function AuthForm() {
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const login = trpc.auth.login.useMutation();
-  const signup = trpc.auth.signup.useMutation();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const isSignup = mode === "signup";
-  const pending = login.isPending || signup.isPending;
+  const pending = login.isPending;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     try {
-      if (isSignup) {
-        await signup.mutateAsync({
-          name: name.trim(),
-          email: email.trim(),
-          password,
-        });
-        toast.success("Account created.");
-      } else {
-        await login.mutateAsync({ email: email.trim(), password });
-        toast.success("Signed in.");
-      }
+      await login.mutateAsync({ email: email.trim(), password });
+      toast.success("Signed in.");
       const user = await utils.auth.me.fetch();
       navigate(user?.role === "admin" ? "/admin" : "/");
     } catch (error) {
@@ -55,38 +43,16 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <div className="container py-14 max-w-md">
         <div className="rounded-lg border border-border bg-card p-6 shadow-[0_2px_24px_-12px_rgba(11,43,92,0.18)]">
           <div className="h-12 w-12 rounded-md bg-[var(--sunmoon-navy)] text-white flex items-center justify-center">
-            {isSignup ? (
-              <UserPlus className="h-5 w-5" />
-            ) : (
-              <Lock className="h-5 w-5" />
-            )}
+            <Lock className="h-5 w-5" />
           </div>
           <h1 className="mt-4 font-serif text-3xl font-bold text-[var(--sunmoon-navy)]">
-            {isSignup ? "Create account" : "Sign in"}
+            Admin sign in
           </h1>
           <p className="font-mm text-sm text-foreground/60 mt-1">
-            {isSignup ? "အကောင့်ဖွင့်ရန်" : "အကောင့်ဝင်ရန်"}
+            အက်ဒမင် အကောင့်ဝင်ရန်
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            {isSignup && (
-              <div>
-                <Label
-                  htmlFor="name"
-                  className="text-xs uppercase tracking-wider"
-                >
-                  Full name
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={event => setName(event.target.value)}
-                  required
-                  autoComplete="name"
-                  className="mt-1.5"
-                />
-              </div>
-            )}
             <div>
               <Label
                 htmlFor="email"
@@ -117,8 +83,8 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
                 value={password}
                 onChange={event => setPassword(event.target.value)}
                 required
-                minLength={isSignup ? 8 : 1}
-                autoComplete={isSignup ? "new-password" : "current-password"}
+                minLength={1}
+                autoComplete="current-password"
                 className="mt-1.5"
               />
             </div>
@@ -130,8 +96,6 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
             >
               {pending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isSignup ? (
-                "Create account"
               ) : (
                 "Sign in"
               )}
@@ -139,13 +103,8 @@ function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           </form>
 
           <p className="mt-4 text-sm text-foreground/60">
-            {isSignup ? "Already have an account?" : "Need an account?"}{" "}
-            <Link
-              href={isSignup ? "/signin" : "/signup"}
-              className="font-semibold text-[var(--sunmoon-blue)] hover:text-[var(--sunmoon-navy)]"
-            >
-              {isSignup ? "Sign in" : "Sign up"}
-            </Link>
+            Buyer checkout does not require an account. Use ticket lookup with
+            the email entered during purchase.
           </p>
         </div>
       </div>
