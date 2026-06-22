@@ -5,13 +5,11 @@ import { z } from "zod";
 import {
   adminMutationProcedure,
   adminProcedure,
-  protectedMutationProcedure,
-  protectedProcedure,
   publicProcedure,
   router,
 } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
-import { assertIpRateLimit, assertUserRateLimit } from "../_core/rateLimit";
+import { assertIpRateLimit } from "../_core/rateLimit";
 import * as db from "../db";
 import { hashToken, signQrToken } from "../qrToken";
 import { storagePut } from "../storage";
@@ -92,16 +90,6 @@ async function createQrImage(ticketCode: string, signedToken: string) {
 type OrderForCheckout = NonNullable<Awaited<ReturnType<typeof db.getOrderByMerchantUid>>>;
 type PaymentProofForCheckout = NonNullable<Awaited<ReturnType<typeof db.getLatestPaymentProofByOrder>>>;
 type TicketForCheckout = Awaited<ReturnType<typeof db.getTicketsByOrder>>[number];
-
-function assertOrderAccess(
-  order: OrderForCheckout,
-  user: { id: number; role: string }
-) {
-  if (isAdminUser(user)) return;
-  if (order.userId !== user.id) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Order access denied" });
-  }
-}
 
 function isAdminUser(user: { role: string }) {
   return user.role === "admin";
@@ -248,7 +236,7 @@ export const ordersRouter = router({
           merchantUid,
           eventId: event.id,
           ticketTypeId: tt.id,
-          userId: ctx.user?.id,
+          userId: null,
           buyerName: input.buyerName,
           buyerEmail: input.buyerEmail,
           buyerPhone: input.buyerPhone ?? null,
@@ -270,10 +258,10 @@ export const ordersRouter = router({
     }),
 
   /**
-   * Authenticated order summary by merchantUid.
-   * Owners can view their own order; admins can view any order.
+   * Public guest checkout summary by merchantUid.
+   * merchantUid is the checkout identifier; possession allows viewing the order status.
    */
-  getByMerchantUid: protectedProcedure
+  getByMerchantUid: publicProcedure
     .input(z.object({ merchantUid: z.string() }))
     .query(async ({ input, ctx }) => {
       await assertIpRateLimit(ctx, {
@@ -284,13 +272,12 @@ export const ordersRouter = router({
       const order = await db.getOrderByMerchantUid(input.merchantUid);
       if (!order)
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
-      assertOrderAccess(order, ctx.user);
       const event = await db.getEventById(order.eventId);
       const tt = await db.getTicketType(order.ticketTypeId);
       const issuedTickets =
         order.status === "PAID" ? await db.getTicketsByOrder(order.id) : [];
       const latestProof = await db.getLatestPaymentProofByOrder(order.id);
-      const isAdmin = isAdminUser(ctx.user);
+      const isAdmin = ctx.user ? isAdminUser(ctx.user) : false;
       return {
         order: serializeOrderForCheckout(order),
         event,
@@ -302,7 +289,7 @@ export const ordersRouter = router({
       };
     }),
 
-  uploadPaymentProof: protectedMutationProcedure
+  uploadPaymentProof: publicProcedure
     .input(
       z.object({
         merchantUid: z.string(),
@@ -311,7 +298,7 @@ export const ordersRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      await assertUserRateLimit(ctx.user.id, {
+      await assertIpRateLimit(ctx, {
         namespace: "orders.uploadPaymentProof",
         limit: 10,
         windowMs: 60_000,
@@ -320,12 +307,6 @@ export const ordersRouter = router({
       const order = await db.getOrderByMerchantUid(input.merchantUid);
       if (!order) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
-      }
-      if (order.userId !== ctx.user.id) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Order access denied",
-        });
       }
       if (order.status !== "PENDING") {
         throw new TRPCError({
@@ -359,7 +340,7 @@ export const ordersRouter = router({
       const proofId = await db.createPaymentProof({
         orderId: order.id,
         paymentId: payment?.id ?? null,
-        uploadedByUserId: ctx.user?.id ?? null,
+        uploadedByUserId: null,
         receiptImageUrl: upload.url,
         status: "PENDING",
       });

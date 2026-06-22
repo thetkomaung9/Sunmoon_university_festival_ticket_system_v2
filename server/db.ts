@@ -548,6 +548,24 @@ export async function listTicketsByUser(userId: number) {
     .orderBy(desc(tickets.issuedAt));
 }
 
+export async function listTicketsByBuyerEmail(buyerEmail: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      ticket: tickets,
+      order: orders,
+      event: events,
+      ticketType: ticketTypes,
+    })
+    .from(tickets)
+    .innerJoin(orders, eq(orders.id, tickets.orderId))
+    .innerJoin(events, eq(events.id, tickets.eventId))
+    .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
+    .where(and(eq(orders.buyerEmail, buyerEmail), eq(orders.status, "PAID")))
+    .orderBy(desc(tickets.issuedAt));
+}
+
 export async function getTicketsByEvent(eventId: number) {
   const db = await getDb();
   if (!db) return [];
