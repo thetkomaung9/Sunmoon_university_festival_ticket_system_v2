@@ -3,7 +3,6 @@ import { createReadStream } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import type { User } from "../../drizzle/schema";
-import * as db from "../db";
 import { getLocalStoragePath } from "../storage";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
@@ -40,10 +39,6 @@ export function classifyStorageKey(key: string): StorageAccess {
   }
 
   return { kind: "public" };
-}
-
-function isStaffOrAdmin(user: User) {
-  return user.role === "admin" || user.role === "staff";
 }
 
 export async function canAccessStorageKey(
