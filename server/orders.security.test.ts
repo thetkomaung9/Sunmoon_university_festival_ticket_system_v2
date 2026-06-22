@@ -130,21 +130,39 @@ afterEach(() => {
 });
 
 describe("orders ownership access control", () => {
-  it("requires authentication for getByMerchantUid", async () => {
+  it("allows guest checkout lookup by merchantUid", async () => {
+    vi.spyOn(db, "getOrderByMerchantUid").mockResolvedValue(order(1));
+    vi.spyOn(db, "getEventById").mockResolvedValue(event);
+    vi.spyOn(db, "getTicketType").mockResolvedValue(ticketType);
+    vi.spyOn(db, "getTicketsByOrder").mockResolvedValue([]);
+    vi.spyOn(db, "getLatestPaymentProofByOrder").mockResolvedValue(undefined);
     const caller = appRouter.createCaller(context(null));
 
-    await expect(
-      caller.orders.getByMerchantUid({ merchantUid: "smu_test_order" })
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    const result = await caller.orders.getByMerchantUid({
+      merchantUid: "smu_test_order",
+    });
+
+    expect(result.order).toMatchObject({
+      merchantUid: "smu_test_order",
+      buyerEmail: "buyer@example.com",
+      status: "PENDING_PAYMENT_VERIFICATION",
+    });
+    expect(result.latestProof).toBeNull();
   });
 
-  it("rejects non-owner users for getByMerchantUid", async () => {
+  it("does not use session ownership for merchantUid lookup", async () => {
     vi.spyOn(db, "getOrderByMerchantUid").mockResolvedValue(order(1));
+    vi.spyOn(db, "getEventById").mockResolvedValue(event);
+    vi.spyOn(db, "getTicketType").mockResolvedValue(ticketType);
+    vi.spyOn(db, "getTicketsByOrder").mockResolvedValue([]);
+    vi.spyOn(db, "getLatestPaymentProofByOrder").mockResolvedValue(undefined);
     const caller = appRouter.createCaller(context(user(2)));
 
-    await expect(
-      caller.orders.getByMerchantUid({ merchantUid: "smu_test_order" })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const result = await caller.orders.getByMerchantUid({
+      merchantUid: "smu_test_order",
+    });
+
+    expect(result.order.merchantUid).toBe("smu_test_order");
   });
 
   it("returns a sanitized owner order without receipt URLs or internal fields", async () => {
@@ -196,23 +214,45 @@ describe("orders ownership access control", () => {
     });
   });
 
-  it("rejects payment proof uploads from non-owners before storing the receipt", async () => {
+  it("allows guest payment proof uploads by merchantUid", async () => {
     vi.stubEnv("FRONTEND_URL", "https://festival.example.com");
     vi.spyOn(db, "getOrderByMerchantUid").mockResolvedValue({
       ...order(1),
       status: "PENDING",
     });
-    const storageSpy = vi.spyOn(storage, "storagePut");
-    const caller = appRouter.createCaller(context(user(2)));
+    const storageSpy = vi.spyOn(storage, "storagePut").mockResolvedValue({
+      url: "https://storage.example.com/private-receipt.png",
+    });
+    vi.spyOn(db, "createPayment").mockResolvedValue(undefined);
+    vi.spyOn(db, "getPaymentByKey").mockResolvedValue({
+      id: 501,
+      orderId: 101,
+      provider: "bank_transfer",
+      paymentKey: "bank_smu_test_order",
+      amount: 50000,
+      currency: "KRW",
+      status: "PENDING_VERIFICATION",
+      rawPayload: null,
+      paidAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.spyOn(db, "createPaymentProof").mockResolvedValue(401);
+    vi.spyOn(db, "setOrderStatus").mockResolvedValue(undefined);
+    vi.spyOn(db, "logPayment").mockResolvedValue(undefined);
+    const caller = appRouter.createCaller(context(null));
 
-    await expect(
-      caller.orders.uploadPaymentProof({
-        merchantUid: "smu_test_order",
-        receiptImageDataUrl: "data:image/png;base64,aGVsbG8=",
-        fileName: "receipt.png",
-      })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    expect(storageSpy).not.toHaveBeenCalled();
+    const result = await caller.orders.uploadPaymentProof({
+      merchantUid: "smu_test_order",
+      receiptImageDataUrl: "data:image/png;base64,aGVsbG8=",
+      fileName: "receipt.png",
+    });
+
+    expect(result.status).toBe("PENDING_PAYMENT_VERIFICATION");
+    expect(storageSpy).toHaveBeenCalled();
+    expect(db.createPaymentProof).toHaveBeenCalledWith(
+      expect.objectContaining({ uploadedByUserId: null })
+    );
   });
 
   it("allows the authenticated owner to upload a payment proof", async () => {
@@ -255,7 +295,7 @@ describe("orders ownership access control", () => {
       status: "PENDING_PAYMENT_VERIFICATION",
     });
     expect(db.createPaymentProof).toHaveBeenCalledWith(
-      expect.objectContaining({ uploadedByUserId: 1 })
+      expect.objectContaining({ uploadedByUserId: null })
     );
   });
 

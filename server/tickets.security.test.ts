@@ -124,28 +124,35 @@ afterEach(() => {
 });
 
 describe("tickets.getByCode access control", () => {
-  it("requires authentication", async () => {
-    const caller = appRouter.createCaller(context(null));
-
-    await expect(
-      caller.tickets.getByCode({ code: "FT-2026-000001" })
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-  });
-
-  it("rejects authenticated non-owners", async () => {
+  it("requires matching buyer email for guest ticket lookup", async () => {
     mockTicketLookup(1);
-    const caller = appRouter.createCaller(context(user(2)));
+    const caller = appRouter.createCaller(context(null));
 
     await expect(
       caller.tickets.getByCode({ code: "FT-2026-000001" })
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("allows the owner and returns only ticket-view fields", async () => {
+  it("rejects wrong buyer email", async () => {
     mockTicketLookup(1);
-    const caller = appRouter.createCaller(context(user(1)));
+    const caller = appRouter.createCaller(context(null));
 
-    const result = await caller.tickets.getByCode({ code: "FT-2026-000001" });
+    await expect(
+      caller.tickets.getByCode({
+        code: "FT-2026-000001",
+        buyerEmail: "other@example.com",
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("allows matching buyer email and returns only ticket-view fields", async () => {
+    mockTicketLookup(1);
+    const caller = appRouter.createCaller(context(null));
+
+    const result = await caller.tickets.getByCode({
+      code: "FT-2026-000001",
+      buyerEmail: "buyer@example.com",
+    });
 
     expect(result.ticket).toEqual({
       id: 601,
@@ -189,6 +196,26 @@ describe("tickets.getByCode access control", () => {
     const result = await caller.tickets.getByCode({ code: "FT-2026-000001" });
 
     expect(result.ticket.ticketCode).toBe("FT-2026-000001");
+  });
+
+  it("looks up issued tickets by buyer email", async () => {
+    vi.spyOn(db, "listTicketsByBuyerEmail").mockResolvedValue([
+      {
+        ticket: ticket(),
+        order: order(1),
+        event,
+        ticketType,
+      },
+    ]);
+    const caller = appRouter.createCaller(context(null));
+
+    const result = await caller.tickets.lookupByBuyerEmail({
+      buyerEmail: "buyer@example.com",
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].ticket.ticketCode).toBe("FT-2026-000001");
+    expect(result[0].order?.buyerName).toBe("Buyer Name");
   });
 });
 
