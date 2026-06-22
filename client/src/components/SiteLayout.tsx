@@ -115,14 +115,12 @@ export default function SiteLayout({
           </nav>
 
           <div className="hidden md:flex items-center gap-2">
-            {isAuthenticated && (
-              <Button asChild variant="outline" size="sm" className="bg-white">
-                <Link href="/my-tickets">
-                  <Ticket className="h-4 w-4" />
-                  My Tickets
-                </Link>
-              </Button>
-            )}
+            <Button asChild variant="outline" size="sm" className="bg-white">
+              <Link href="/tickets/lookup">
+                <Ticket className="h-4 w-4" />
+                Find Tickets
+              </Link>
+            </Button>
             {isStaff && (
               <Button asChild variant="outline" size="sm" className="bg-white">
                 <Link href="/scanner">
@@ -157,7 +155,7 @@ export default function SiteLayout({
               >
                 <Link href="/signin">
                   <GraduationCap className="h-4 w-4" />
-                  Sign in
+                  Admin sign in
                 </Link>
               </Button>
             )}
@@ -191,15 +189,13 @@ export default function SiteLayout({
                 </Link>
               ))}
               <div className="h-px bg-border my-2" />
-              {isAuthenticated && (
-                <Link
-                  href="/my-tickets"
-                  onClick={() => setOpen(false)}
-                  className="px-3 py-2.5 rounded-md text-sm font-medium hover:bg-secondary flex items-center gap-2"
-                >
-                  <Ticket className="h-4 w-4" /> My Tickets
-                </Link>
-              )}
+              <Link
+                href="/tickets/lookup"
+                onClick={() => setOpen(false)}
+                className="px-3 py-2.5 rounded-md text-sm font-medium hover:bg-secondary flex items-center gap-2"
+              >
+                <Ticket className="h-4 w-4" /> Find Tickets
+              </Link>
               {isStaff && (
                 <Link
                   href="/scanner"
@@ -233,7 +229,7 @@ export default function SiteLayout({
                   href="/signin"
                   className="px-3 py-2.5 rounded-md text-sm font-medium bg-[var(--sunmoon-navy)] text-white flex items-center gap-2"
                 >
-                  <GraduationCap className="h-4 w-4" /> Sign in
+                  <GraduationCap className="h-4 w-4" /> Admin sign in
                 </Link>
               )}
             </div>
