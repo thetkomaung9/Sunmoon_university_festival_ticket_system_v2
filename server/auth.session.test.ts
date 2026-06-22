@@ -131,7 +131,7 @@ afterEach(() => {
 });
 
 describe("auth session lifecycle", () => {
-  it("signs up, creates a session cookie, and returns the user from auth.me", async () => {
+  it("disables public signup for buyer accounts", async () => {
     mockUsers();
     const { ctx, cookies } = createCallerContext();
     const caller = appRouter.createCaller(ctx);
@@ -142,29 +142,9 @@ describe("auth session lifecycle", () => {
         email: "new@example.com",
         password: "password123",
       })
-    ).resolves.toEqual({ success: true });
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    expect(cookies).toHaveLength(1);
-    expect(cookies[0]).toMatchObject({
-      name: COOKIE_NAME,
-      options: {
-        httpOnly: true,
-        path: "/",
-        sameSite: "none",
-        secure: true,
-      },
-    });
-
-    const authCtx = await createAuthenticatedContext(cookies[0]!.value);
-    const authCaller = appRouter.createCaller(authCtx);
-    const me = await authCaller.auth.me();
-
-    expect(me).toMatchObject({
-      openId: "email:new@example.com",
-      email: "new@example.com",
-      name: "New User",
-      role: "user",
-    });
+    expect(cookies).toHaveLength(0);
   });
 
   it("logs in and preserves auth.me when the stored user name is null", async () => {
