@@ -47,13 +47,12 @@ export async function canAccessStorageKey(
 ): Promise<boolean> {
   const access = classifyStorageKey(key);
   if (access.kind === "public") return true;
+  if (access.kind === "qrTicket") return true;
   if (!user) return false;
 
   if (access.kind === "paymentProof") {
     return user.role === "admin";
   }
-
-  if (access.kind === "qrTicket") return true;
 
   return false;
 }
