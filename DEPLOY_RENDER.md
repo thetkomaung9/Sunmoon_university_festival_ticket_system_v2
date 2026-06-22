@@ -73,7 +73,7 @@ corepack pnpm db:push
 10. Confirm the API is reachable with the tRPC health query:
 
 ```bash
-curl 'https://YOUR_RENDER_URL/api/trpc/system.health?input=%7B%22timestamp%22%3A1%7D'
+curl 'https://YOUR_RENDER_URL/api/trpc/system.health?input=%7B%22json%22%3A%7B%22timestamp%22%3A1%7D%7D'
 ```
 
 Expected response includes `"ok":true`.
@@ -92,7 +92,7 @@ Then in another terminal:
 
 ```bash
 curl -I http://localhost:3100/
-curl 'http://localhost:3100/api/trpc/system.health?input=%7B%22timestamp%22%3A1%7D'
+curl 'http://localhost:3100/api/trpc/system.health?input=%7B%22json%22%3A%7B%22timestamp%22%3A1%7D%7D'
 ```
 
 The root page should return `200`, and the health query should include `"ok":true`.
