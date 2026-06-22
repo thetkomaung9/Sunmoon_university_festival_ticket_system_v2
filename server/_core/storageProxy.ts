@@ -58,11 +58,9 @@ export async function canAccessStorageKey(
     return user.role === "admin";
   }
 
-  const ticket = await db.getTicketByCode(access.ticketCode);
-  if (!ticket) return false;
-  if (isStaffOrAdmin(user)) return true;
-  const order = await db.getOrderById(ticket.orderId);
-  return order?.userId === user.id;
+  if (access.kind === "qrTicket") return true;
+
+  return false;
 }
 
 export function registerStorageProxy(app: Express) {

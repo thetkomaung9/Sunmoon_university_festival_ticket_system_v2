@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   adminProcedure,
   protectedProcedure,
+  publicProcedure,
   router,
   staffMutationProcedure,
 } from "../_core/trpc";
@@ -36,9 +37,16 @@ function isStaffOrAdmin(user: { role: string }) {
   return user.role === "admin" || user.role === "staff";
 }
 
-function assertTicketAccess(order: OrderForView | undefined, user: { id: number; role: string }) {
-  if (isStaffOrAdmin(user)) return;
-  if (!order || order.userId !== user.id) {
+function assertTicketLookupAccess(
+  order: OrderForView | undefined,
+  input: { buyerEmail?: string },
+  user?: { id: number; role: string } | null
+) {
+  if (user && isStaffOrAdmin(user)) return;
+  if (!order || !input.buyerEmail) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ticket access denied" });
+  }
+  if (order.buyerEmail.toLowerCase() !== input.buyerEmail.trim().toLowerCase()) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Ticket access denied" });
   }
 }
@@ -81,6 +89,26 @@ function serializeOrderForTicketView(order: OrderForView | undefined) {
 
 export const ticketsRouter = router({
   /**
+   * Public buyer lookup by email. Only issued PAID tickets are returned.
+   */
+  lookupByBuyerEmail: publicProcedure
+    .input(z.object({ buyerEmail: z.string().email().max(320) }))
+    .query(async ({ input, ctx }) => {
+      await assertIpRateLimit(ctx, {
+        namespace: "tickets.lookupByBuyerEmail",
+        limit: 20,
+        windowMs: 60_000,
+      });
+      const rows = await db.listTicketsByBuyerEmail(input.buyerEmail.trim());
+      return rows.map(row => ({
+        ticket: serializeTicketForView(row.ticket),
+        event: serializeEventForView(row.event),
+        ticketType: serializeTicketTypeForView(row.ticketType),
+        order: serializeOrderForTicketView(row.order),
+      }));
+    }),
+
+  /**
    * Authenticated buyer dashboard list.
    * Returns only tickets owned by the current user's paid orders.
    */
@@ -100,12 +128,15 @@ export const ticketsRouter = router({
   }),
 
   /**
-   * Authenticated ticket-view endpoint (by ticket code).
-   * Owners can view their own ticket; staff/admin can view any ticket.
+   * Ticket-view endpoint (by ticket code).
+   * Staff/admin can view any ticket; buyers must provide the matching buyer email.
    * Returns enough info to render the ticket card + the issued signed QR token,
    * without exposing raw DB rows or QR token hashes.
    */
-  getByCode: protectedProcedure.input(z.object({ code: z.string() })).query(async ({ input, ctx }) => {
+  getByCode: publicProcedure.input(z.object({
+    code: z.string(),
+    buyerEmail: z.string().email().max(320).optional(),
+  })).query(async ({ input, ctx }) => {
     await assertIpRateLimit(ctx, {
       namespace: "tickets.getByCode",
       limit: 30,
@@ -114,7 +145,7 @@ export const ticketsRouter = router({
     const ticket = await db.getTicketByCode(input.code);
     if (!ticket) throw new TRPCError({ code: "NOT_FOUND", message: "Ticket not found" });
     const order = await db.getOrderById(ticket.orderId);
-    assertTicketAccess(order, ctx.user);
+    assertTicketLookupAccess(order, input, ctx.user);
     const event = await db.getEventById(ticket.eventId);
     const ticketType = await db.getTicketType(ticket.ticketTypeId);
     // Re-derive the issued token. Because token issuance writes the hash into
