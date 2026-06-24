@@ -29,3 +29,5 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
+      - key: ALLOW_IN_MEMORY_RATE_LIMIT
+        value: "true"

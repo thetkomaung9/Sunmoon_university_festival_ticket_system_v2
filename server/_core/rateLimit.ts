@@ -61,6 +61,10 @@ function isLoopbackKey(key: string) {
   );
 }
 
+function allowsProductionMemoryRateLimit() {
+  return process.env.ALLOW_IN_MEMORY_RATE_LIMIT === "true";
+}
+
 function assertMemoryRateLimit(input: RateLimitInput) {
   const now = Date.now();
   const key = bucketKey(input);
@@ -108,7 +112,7 @@ export async function assertRateLimit(input: RateLimitInput) {
   if (process.env.NODE_ENV === "production") {
     if (
       (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) &&
-      isLoopbackKey(input.key)
+      (isLoopbackKey(input.key) || allowsProductionMemoryRateLimit())
     ) {
       assertMemoryRateLimit(input);
       return;

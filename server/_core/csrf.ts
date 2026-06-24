@@ -29,6 +29,30 @@ function isLocalPreviewRequest(ctx: Pick<TrpcContext, "req">, origin: string) {
   return isLoopbackHost(ctx.req.hostname) || isLoopbackHost(ctx.req.headers.host);
 }
 
+function getForwardedProto(ctx: Pick<TrpcContext, "req">) {
+  const value = ctx.req.headers["x-forwarded-proto"];
+  const proto = Array.isArray(value) ? value[0] : value;
+  return proto?.split(",")[0]?.trim() || ctx.req.protocol;
+}
+
+function getRequestHosts(ctx: Pick<TrpcContext, "req">) {
+  const forwardedHost = ctx.req.headers["x-forwarded-host"];
+  const host = ctx.req.headers.host;
+  return [Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost, host]
+    .filter(Boolean)
+    .map(value => String(value).trim().toLowerCase());
+}
+
+function isSameRequestOrigin(ctx: Pick<TrpcContext, "req">, origin: string) {
+  try {
+    const parsed = new URL(origin);
+    const proto = `${getForwardedProto(ctx)}:`.toLowerCase();
+    return parsed.protocol.toLowerCase() === proto && getRequestHosts(ctx).includes(parsed.host.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 function getAllowedOrigins() {
   return [
     process.env.FRONTEND_URL ?? "",
@@ -76,7 +100,8 @@ export function assertCsrfSafe(ctx: Pick<TrpcContext, "req">) {
     !allowedOrigins.includes(normalizedOrigin) &&
     !(
       (process.env.NODE_ENV !== "production" && isLocalOrigin(normalizedOrigin)) ||
-      (process.env.NODE_ENV === "production" && isLocalPreviewRequest(ctx, normalizedOrigin))
+      (process.env.NODE_ENV === "production" &&
+        (isLocalPreviewRequest(ctx, normalizedOrigin) || isSameRequestOrigin(ctx, normalizedOrigin)))
     )
   ) {
     throw new TRPCError({
