@@ -97,4 +97,20 @@ describe("csrf protection", () => {
       )
     ).not.toThrow();
   });
+
+  it("accepts same-origin production requests even when env origins are stale", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("FRONTEND_URL", "https://old-service.example.com");
+
+    expect(() =>
+      assertCsrfSafe(
+        createContext({
+          host: "sunmoon-ticketing.onrender.com",
+          origin: "https://sunmoon-ticketing.onrender.com",
+          cookieToken: "valid-token",
+          headerToken: "valid-token",
+        })
+      )
+    ).not.toThrow();
+  });
 });

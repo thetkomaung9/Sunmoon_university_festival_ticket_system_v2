@@ -287,6 +287,35 @@ describe("rate limiting", () => {
     ).rejects.toThrow("Too many requests. Please try again later.");
   });
 
+  it("uses the memory limiter in production when explicitly enabled", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+    vi.stubEnv("ALLOW_IN_MEMORY_RATE_LIMIT", "true");
+
+    await assertRateLimit({
+      namespace: "test.lookup",
+      key: "203.0.113.10",
+      limit: 2,
+      windowMs: 60_000,
+    });
+    await assertRateLimit({
+      namespace: "test.lookup",
+      key: "203.0.113.10",
+      limit: 2,
+      windowMs: 60_000,
+    });
+
+    await expect(
+      assertRateLimit({
+        namespace: "test.lookup",
+        key: "203.0.113.10",
+        limit: 2,
+        windowMs: 60_000,
+      })
+    ).rejects.toThrow("Too many requests. Please try again later.");
+  });
+
   it("uses Upstash Redis in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com");
