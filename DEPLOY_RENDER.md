@@ -37,6 +37,8 @@ Set these in Render before the first deploy:
 | `CORS_ORIGINS` | Yes | Same value as `FRONTEND_URL` for single-origin Render deployment. |
 | `BUILT_IN_FORGE_API_URL` | Yes | Required in production for uploaded payment receipts and generated QR images. |
 | `BUILT_IN_FORGE_API_KEY` | Yes | Required in production for uploaded payment receipts and generated QR images. |
+| `UPSTASH_REDIS_REST_URL` | Yes | Required in production for ticket/order lookup rate limiting. |
+| `UPSTASH_REDIS_REST_TOKEN` | Yes | Required in production for ticket/order lookup rate limiting. |
 
 Usually leave `VITE_API_URL` unset on Render. The frontend and API are served from the same origin, and the client will call `/api/trpc`.
 
