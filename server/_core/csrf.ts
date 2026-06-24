@@ -16,6 +16,17 @@ function isLocalOrigin(origin: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
 
+function isLoopbackHost(host: string | undefined) {
+  if (!host) return false;
+  const hostname = host.replace(/^\[/, "").replace(/\]$/, "").split(":")[0];
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function isLocalPreviewRequest(ctx: Pick<TrpcContext, "req">, origin: string) {
+  if (!isLocalOrigin(origin)) return false;
+  return isLoopbackHost(ctx.req.hostname) || isLoopbackHost(ctx.req.headers.host);
+}
+
 function getAllowedOrigins() {
   return [
     process.env.FRONTEND_URL ?? "",
@@ -61,7 +72,10 @@ export function assertCsrfSafe(ctx: Pick<TrpcContext, "req">) {
     }
   } else if (
     !allowedOrigins.includes(normalizedOrigin) &&
-    !(process.env.NODE_ENV !== "production" && isLocalOrigin(normalizedOrigin))
+    !(
+      (process.env.NODE_ENV !== "production" && isLocalOrigin(normalizedOrigin)) ||
+      (process.env.NODE_ENV === "production" && isLocalPreviewRequest(ctx, normalizedOrigin))
+    )
   ) {
     throw new TRPCError({
       code: "FORBIDDEN",

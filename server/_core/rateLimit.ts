@@ -51,6 +51,16 @@ function bucketKey(input: RateLimitInput) {
   return `rate-limit:${input.namespace}:${input.key}`;
 }
 
+function isLoopbackKey(key: string) {
+  const normalized = key.trim().toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized === "::ffff:127.0.0.1"
+  );
+}
+
 function assertMemoryRateLimit(input: RateLimitInput) {
   const now = Date.now();
   const key = bucketKey(input);
@@ -96,6 +106,13 @@ async function assertRedisRateLimit(input: RateLimitInput) {
 
 export async function assertRateLimit(input: RateLimitInput) {
   if (process.env.NODE_ENV === "production") {
+    if (
+      (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) &&
+      isLoopbackKey(input.key)
+    ) {
+      assertMemoryRateLimit(input);
+      return;
+    }
     await assertRedisRateLimit(input);
     return;
   }
