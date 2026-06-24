@@ -66,9 +66,9 @@ export async function storagePut(
 ): Promise<{ key: string; url: string }> {
   const key = appendHashSuffix(normalizeKey(relKey));
 
-  if (!hasForgeConfig() && !ENV.isProduction) {
+  if (!hasForgeConfig()) {
     console.warn(
-      "[Storage] BUILT_IN_FORGE_API_URL/KEY not configured; using local development storage."
+      "[Storage] BUILT_IN_FORGE_API_URL/KEY not configured; using local filesystem storage."
     );
     return localStoragePut(key, data);
   }

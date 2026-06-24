@@ -66,10 +66,6 @@ export function registerStorageProxy(app: Express) {
     }
 
     const forgeBaseUrl = getForgeBaseUrl();
-    if (!forgeBaseUrl && ENV.isProduction) {
-      res.status(500).send("Storage proxy not configured");
-      return;
-    }
 
     try {
       const user = await sdk.authenticateRequest(req).catch(() => null);
