@@ -259,6 +259,34 @@ describe("rate limiting", () => {
     ).rejects.toThrow("Rate limiting is not configured");
   });
 
+  it("uses the memory limiter for local production previews without Redis", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+
+    await assertRateLimit({
+      namespace: "test.lookup",
+      key: "::1",
+      limit: 2,
+      windowMs: 60_000,
+    });
+    await assertRateLimit({
+      namespace: "test.lookup",
+      key: "::1",
+      limit: 2,
+      windowMs: 60_000,
+    });
+
+    await expect(
+      assertRateLimit({
+        namespace: "test.lookup",
+        key: "::1",
+        limit: 2,
+        windowMs: 60_000,
+      })
+    ).rejects.toThrow("Too many requests. Please try again later.");
+  });
+
   it("uses Upstash Redis in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com");

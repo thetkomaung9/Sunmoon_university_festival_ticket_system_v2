@@ -6,10 +6,13 @@ function createContext(input: {
   origin?: string;
   cookieToken?: string;
   headerToken?: string;
+  host?: string;
 }): Pick<TrpcContext, "req"> {
   return {
     req: {
+      hostname: input.host?.split(":")[0],
       headers: {
+        ...(input.host ? { host: input.host } : {}),
         ...(input.origin ? { origin: input.origin } : {}),
         ...(input.cookieToken
           ? { cookie: `${CSRF_COOKIE_NAME}=${encodeURIComponent(input.cookieToken)}` }
@@ -72,6 +75,22 @@ describe("csrf protection", () => {
       assertCsrfSafe(
         createContext({
           origin: "https://festival.example.com",
+          cookieToken: "valid-token",
+          headerToken: "valid-token",
+        })
+      )
+    ).not.toThrow();
+  });
+
+  it("accepts local production preview origins from a loopback host", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("FRONTEND_URL", "https://festival.example.com");
+
+    expect(() =>
+      assertCsrfSafe(
+        createContext({
+          host: "localhost:3000",
+          origin: "http://127.0.0.1:3000",
           cookieToken: "valid-token",
           headerToken: "valid-token",
         })

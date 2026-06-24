@@ -18,8 +18,10 @@ function isLocalOrigin(origin: string) {
 
 function isLoopbackHost(host: string | undefined) {
   if (!host) return false;
-  const hostname = host.replace(/^\[/, "").replace(/\]$/, "").split(":")[0];
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const normalized = host.trim().toLowerCase();
+  if (normalized === "::1" || normalized.startsWith("[::1]")) return true;
+  const hostname = normalized.split(":")[0];
+  return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
 function isLocalPreviewRequest(ctx: Pick<TrpcContext, "req">, origin: string) {
