@@ -39,7 +39,12 @@ afterEach(() => {
 async function fetchStoragePath(path: string) {
   const app = express();
   registerStorageProxy(app);
-  const server = app.listen(0);
+  const server = await new Promise<ReturnType<typeof app.listen>>((resolve, reject) => {
+    const listeningServer = app.listen(0, "127.0.0.1", () =>
+      resolve(listeningServer)
+    );
+    listeningServer.once("error", reject);
+  });
   try {
     const address = server.address();
     if (!address || typeof address === "string") {
