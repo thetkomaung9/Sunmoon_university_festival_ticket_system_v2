@@ -19,6 +19,7 @@ type UpstashResponse<T> = {
 };
 
 const buckets = new Map<string, Bucket>();
+let warnedAboutProductionMemoryLimiter = false;
 
 function getHeaderValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -61,8 +62,16 @@ function isLoopbackKey(key: string) {
   );
 }
 
-function allowsProductionMemoryRateLimit() {
-  return process.env.ALLOW_IN_MEMORY_RATE_LIMIT === "true";
+function hasRedisRateLimitConfig() {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+function warnProductionMemoryLimiter() {
+  if (process.env.NODE_ENV !== "production" || warnedAboutProductionMemoryLimiter) return;
+  warnedAboutProductionMemoryLimiter = true;
+  console.warn(
+    "[RateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured; using in-memory rate limiting for this process."
+  );
 }
 
 function assertMemoryRateLimit(input: RateLimitInput) {
@@ -110,10 +119,8 @@ async function assertRedisRateLimit(input: RateLimitInput) {
 
 export async function assertRateLimit(input: RateLimitInput) {
   if (process.env.NODE_ENV === "production") {
-    if (
-      (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) &&
-      (isLoopbackKey(input.key) || allowsProductionMemoryRateLimit())
-    ) {
+    if (!hasRedisRateLimitConfig()) {
+      warnProductionMemoryLimiter();
       assertMemoryRateLimit(input);
       return;
     }
