@@ -25,3 +25,7 @@ services:
         sync: false
       - key: BUILT_IN_FORGE_API_KEY
         sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
