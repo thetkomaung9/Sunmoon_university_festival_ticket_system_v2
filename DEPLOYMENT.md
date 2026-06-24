@@ -38,7 +38,7 @@ VITE_ANALYTICS_WEBSITE_ID=...
 Notes:
 - `JWT_SECRET` must be non-empty in production.
 - `FRONTEND_URL` and `CORS_ORIGINS` must match the deployed browser origin.
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are required in production because rate limiting fails closed without Redis.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are recommended in production for shared rate limiting. Without Redis, the server falls back to process-local in-memory limits.
 - Do not commit `.env` files.
 
 ## TiDB Cloud Setup
@@ -144,7 +144,7 @@ Used for production rate limiting:
 - Ticket lookup: 30/minute per IP.
 - Scanner verify/check-in: 60/minute per staff/admin user.
 
-If these variables are missing in production, protected operations fail closed.
+If these variables are missing in production, protected operations use process-local in-memory limits.
 
 ## Storage Setup
 
