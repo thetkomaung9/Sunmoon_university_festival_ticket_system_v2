@@ -7,12 +7,14 @@ function createContext(input: {
   cookieToken?: string;
   headerToken?: string;
   host?: string;
+  forwardedProto?: string;
 }): Pick<TrpcContext, "req"> {
   return {
     req: {
       hostname: input.host?.split(":")[0],
       headers: {
         ...(input.host ? { host: input.host } : {}),
+        ...(input.forwardedProto ? { "x-forwarded-proto": input.forwardedProto } : {}),
         ...(input.origin ? { origin: input.origin } : {}),
         ...(input.cookieToken
           ? { cookie: `${CSRF_COOKIE_NAME}=${encodeURIComponent(input.cookieToken)}` }
@@ -106,6 +108,7 @@ describe("csrf protection", () => {
       assertCsrfSafe(
         createContext({
           host: "sunmoon-ticketing.onrender.com",
+          forwardedProto: "https",
           origin: "https://sunmoon-ticketing.onrender.com",
           cookieToken: "valid-token",
           headerToken: "valid-token",
