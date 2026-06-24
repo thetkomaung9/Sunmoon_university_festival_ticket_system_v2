@@ -52,16 +52,6 @@ function bucketKey(input: RateLimitInput) {
   return `rate-limit:${input.namespace}:${input.key}`;
 }
 
-function isLoopbackKey(key: string) {
-  const normalized = key.trim().toLowerCase();
-  return (
-    normalized === "localhost" ||
-    normalized === "127.0.0.1" ||
-    normalized === "::1" ||
-    normalized === "::ffff:127.0.0.1"
-  );
-}
-
 function hasRedisRateLimitConfig() {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 }

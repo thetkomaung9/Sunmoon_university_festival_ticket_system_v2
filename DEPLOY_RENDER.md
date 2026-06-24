@@ -39,11 +39,11 @@ Set these in Render before the first deploy:
 | `BUILT_IN_FORGE_API_KEY` | Yes | Required in production for uploaded payment receipts and generated QR images. |
 | `UPSTASH_REDIS_REST_URL` | Recommended | Shared production rate limiting for ticket/order lookup. |
 | `UPSTASH_REDIS_REST_TOKEN` | Recommended | Shared production rate limiting for ticket/order lookup. |
-| `ALLOW_IN_MEMORY_RATE_LIMIT` | Yes | Set to `true` only for a single Render web instance when Upstash is not configured. |
+| `ALLOW_IN_MEMORY_RATE_LIMIT` | No | Legacy flag. The server automatically falls back to in-memory limits when Upstash is not configured. |
 
 Usually leave `VITE_API_URL` unset on Render. The frontend and API are served from the same origin, and the client will call `/api/trpc`.
 
-For a single Render free web service, `ALLOW_IN_MEMORY_RATE_LIMIT=true` keeps buyer ticket lookup working without Upstash. Use Upstash Redis instead before scaling beyond one instance because in-memory limits are per process.
+For a single Render free web service, the server keeps buyer ticket lookup and payment-proof upload working without Upstash by falling back to in-memory limits. Use Upstash Redis before scaling beyond one instance because in-memory limits are per process.
 
 OAuth variables such as `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, and `VITE_APP_ID` are only needed if you enable the OAuth login flow. Admin email/password login does not require them.
 
