@@ -59,6 +59,11 @@ export default function CheckoutPage() {
               Your QR ticket{tickets.length > 1 ? "s have" : " has"} been issued. A confirmation
               has been sent to <strong>{order.buyerEmail}</strong>.
             </p>
+            <Button asChild variant="outline" className="mt-5 bg-white">
+              <Link href={`/ticket-status/${order.merchantUid}`}>
+                View order status
+              </Link>
+            </Button>
 
             <div className="mt-6 space-y-2">
               {tickets.map((t) => (
@@ -143,6 +148,11 @@ export default function CheckoutPage() {
               Your payment proof has been uploaded. Admin approval is required before QR tickets
               are issued.
             </p>
+            <Button asChild className="mt-5 bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]">
+              <Link href={`/ticket-status/${order.merchantUid}`}>
+                Track ticket status
+              </Link>
+            </Button>
             {latestProof?.receiptImageUrl && (
               <a
                 href={latestProof.receiptImageUrl}
@@ -236,6 +246,14 @@ export default function CheckoutPage() {
               <ShieldCheck className="h-3 w-3" /> Admin approval is required before any ticket is
               issued.
             </p>
+            <div className="mt-2 text-center">
+              <Link
+                href={`/ticket-status/${order.merchantUid}`}
+                className="text-xs font-semibold text-[var(--sunmoon-blue)] hover:text-[var(--sunmoon-navy)]"
+              >
+                Track this order
+              </Link>
+            </div>
           </div>
         </div>
 
