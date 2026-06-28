@@ -49,10 +49,10 @@ export default function TicketLookupPage() {
     <SiteLayout>
       <div className="container py-10">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--sunmoon-blue)]">
-          <Ticket className="h-4 w-4" /> Ticket Lookup
+          <Ticket className="h-4 w-4" /> Track Ticket
         </div>
         <h1 className="mt-2 font-serif text-3xl font-bold text-[var(--sunmoon-navy)]">
-          Find your QR tickets
+          Track your ticket
         </h1>
         <p className="font-mm text-sm text-foreground/60 mt-1">
           ဝယ်ယူထားသော အီးမေးလ်ဖြင့် လက်မှတ်ရှာရန်
@@ -87,7 +87,7 @@ export default function TicketLookupPage() {
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              Search
+              Track
             </Button>
           </div>
         </form>
