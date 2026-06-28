@@ -144,11 +144,6 @@ export default function AdminOrders() {
                   <td className="px-4 py-3">
                     <div className="font-medium">{order?.buyerName ?? "—"}</div>
                     <div className="text-xs text-foreground/60">{order?.buyerEmail ?? "—"}</div>
-                    {order?.studentId && (
-                      <div className="text-[11px] text-foreground/50">
-                        Student ID: {order.studentId}
-                      </div>
-                    )}
                   </td>
                   <td className="px-4 py-3 text-xs">
                     <div className="line-clamp-1">{event?.title ?? "—"}</div>
@@ -223,11 +218,6 @@ export default function AdminOrders() {
                 <td className="px-4 py-3">
                   <div className="font-medium">{o.buyerName}</div>
                   <div className="text-xs text-foreground/60">{o.buyerEmail}</div>
-                  {o.studentId && (
-                    <div className="text-[11px] text-foreground/50">
-                      Student ID: {o.studentId}
-                    </div>
-                  )}
                 </td>
                 <td className="px-4 py-3 text-xs">
                   <div className="line-clamp-1">{o.event?.title ?? "—"}</div>

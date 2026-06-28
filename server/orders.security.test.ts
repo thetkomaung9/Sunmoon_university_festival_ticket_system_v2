@@ -56,7 +56,6 @@ function order(ownerId: number): Order {
     buyerName: "Buyer Name",
     buyerEmail: "buyer@example.com",
     buyerPhone: "010-1234-5678",
-    studentId: "202600001",
     quantity: 2,
     totalAmount: 50000,
     status: "PENDING_PAYMENT_VERIFICATION",
