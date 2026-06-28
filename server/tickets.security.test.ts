@@ -68,6 +68,7 @@ function order(ownerId: number): Order {
     buyerName: "Buyer Name",
     buyerEmail: "buyer@example.com",
     buyerPhone: "010-1234-5678",
+    studentId: "202600001",
     quantity: 1,
     totalAmount: 25000,
     status: "PAID",

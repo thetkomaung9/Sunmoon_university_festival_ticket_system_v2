@@ -33,14 +33,7 @@ export default function EventDetailPage() {
     { slug },
     { enabled: !!slug }
   );
-  const createPending = trpc.orders.createPending.useMutation();
-
   const [ticketTypeId, setTicketTypeId] = useState<number | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [buyerName, setBuyerName] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
-  const [buyerPhone, setBuyerPhone] = useState("");
-  const [studentId, setStudentId] = useState("");
 
   useEffect(() => {
     if (data && !ticketTypeId && data.ticketTypes.length > 0) {
@@ -111,6 +104,7 @@ function EventDetailContent({
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [studentId, setStudentId] = useState("");
   const tt = ticketTypes.find(t => t.id === ticketTypeId);
   const total = (tt?.price ?? 0) * quantity;
   const remaining = tt ? tt.stock - tt.soldCount : 0;

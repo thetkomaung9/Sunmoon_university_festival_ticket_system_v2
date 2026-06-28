@@ -103,6 +103,7 @@ function serializeOrderForCheckout(order: OrderForCheckout) {
     ticketTypeId: order.ticketTypeId,
     buyerName: order.buyerName,
     buyerEmail: order.buyerEmail,
+    studentId: order.studentId,
     quantity: order.quantity,
     totalAmount: order.totalAmount,
     status: order.status,
