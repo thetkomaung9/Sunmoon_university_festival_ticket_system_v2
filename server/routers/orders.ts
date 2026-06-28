@@ -148,6 +148,7 @@ export const ordersRouter = router({
         buyerName: z.string().min(1).max(120),
         buyerEmail: z.string().email().max(320),
         buyerPhone: z.string().max(64).optional(),
+        studentId: z.string().max(64).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -240,6 +241,7 @@ export const ordersRouter = router({
           buyerName: input.buyerName,
           buyerEmail: input.buyerEmail,
           buyerPhone: input.buyerPhone ?? null,
+          studentId: input.studentId?.trim() || null,
           quantity: input.quantity,
           totalAmount,
           status: "PENDING",

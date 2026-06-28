@@ -40,6 +40,7 @@ export default function EventDetailPage() {
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [studentId, setStudentId] = useState("");
 
   useEffect(() => {
     if (data && !ticketTypeId && data.ticketTypes.length > 0) {
@@ -132,6 +133,7 @@ function EventDetailContent({
         buyerName: buyerName.trim(),
         buyerEmail: buyerEmail.trim(),
         buyerPhone: buyerPhone.trim() || undefined,
+        studentId: studentId.trim() || undefined,
       });
       navigate(`/checkout/${result.merchantUid}`);
     } catch (err) {
@@ -373,6 +375,24 @@ function EventDetailContent({
                   className="mt-1.5"
                 />
               </div>
+              <div>
+                <Label
+                  htmlFor="student-id"
+                  className="text-xs uppercase tracking-wider"
+                >
+                  Student ID{" "}
+                  <span className="text-foreground/40 normal-case">
+                    (optional)
+                  </span>
+                </Label>
+                <Input
+                  id="student-id"
+                  value={studentId}
+                  onChange={e => setStudentId(e.target.value)}
+                  placeholder="202600000"
+                  className="mt-1.5"
+                />
+              </div>
             </div>
 
             <div className="mt-6 pt-5 border-t border-border space-y-2">
@@ -408,7 +428,7 @@ function EventDetailContent({
             </Button>
             <p className="mt-3 text-[11px] text-foreground/50 leading-relaxed">
               Order is created in <strong>PENDING</strong> state. Tickets are
-              issued only after the payment is verified server-side via webhook.
+              issued only after an admin approves the payment screenshot.
             </p>
           </form>
         </aside>

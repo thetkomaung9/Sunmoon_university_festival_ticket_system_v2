@@ -117,6 +117,7 @@ export const orders = mysqlTable("orders", {
   buyerName: varchar("buyer_name", { length: 191 }).notNull(),
   buyerEmail: varchar("buyer_email", { length: 320 }).notNull(),
   buyerPhone: varchar("buyer_phone", { length: 64 }),
+  studentId: varchar("student_id", { length: 64 }),
   quantity: int("quantity").default(1).notNull(),
   totalAmount: int("total_amount").notNull(),
   status: mysqlEnum("status", [
