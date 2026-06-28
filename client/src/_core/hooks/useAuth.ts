@@ -9,7 +9,7 @@ type UseAuthOptions = {
 
 export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false } = options ?? {};
-  const redirectPath = options?.redirectPath ?? "/signin";
+  const redirectPath = options?.redirectPath ?? "/admin/login";
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {

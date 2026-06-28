@@ -8,11 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
-export function SignInPage() {
-  return <AuthForm />;
-}
-
-export function SignUpPage() {
+export function AdminLoginPage() {
   return <AuthForm />;
 }
 
@@ -103,8 +99,7 @@ function AuthForm() {
           </form>
 
           <p className="mt-4 text-sm text-foreground/60">
-            Buyer checkout does not require an account. Use ticket lookup with
-            the email entered during purchase.
+            This page is only for festival administrators.
           </p>
         </div>
       </div>

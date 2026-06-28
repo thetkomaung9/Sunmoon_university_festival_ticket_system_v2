@@ -101,7 +101,7 @@ export default function ScannerPage() {
               asChild
               className="mt-5 w-full bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]"
             >
-              <Link href="/signin">Sign in</Link>
+              <Link href="/admin/login">Sign in</Link>
             </Button>
           </div>
         </div>

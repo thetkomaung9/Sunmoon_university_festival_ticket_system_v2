@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
+import { useEffect } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -11,25 +12,39 @@ import AdminEvents from "./pages/admin/AdminEvents";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminReports from "./pages/admin/AdminReports";
-import { SignInPage, SignUpPage } from "./pages/Auth";
+import { AdminLoginPage } from "./pages/Auth";
 import CategoriesPage from "./pages/Categories";
 import CheckoutPage from "./pages/Checkout";
 import EventDetailPage from "./pages/EventDetail";
 import EventsPage from "./pages/Events";
 import Home from "./pages/Home";
-import MyTicketsPage from "./pages/MyTickets";
 import ScannerPage from "./pages/Scanner";
 import TicketStatusPage from "./pages/TicketStatus";
 import TicketLookupPage from "./pages/TicketLookup";
 import TicketViewPage from "./pages/TicketView";
+
+function RedirectTo({ to }: { to: string }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return null;
+}
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/about" component={AboutPage} />
-      <Route path="/signin" component={SignInPage} />
-      <Route path="/signup" component={SignUpPage} />
+      <Route path="/contact" component={AboutPage} />
+      <Route path="/login">
+        <RedirectTo to="/" />
+      </Route>
+      <Route path="/signup">
+        <RedirectTo to="/" />
+      </Route>
+      <Route path="/signin">
+        <RedirectTo to="/admin/login" />
+      </Route>
       <Route path="/categories" component={CategoriesPage} />
       <Route path="/categories/:slug" component={EventsPage} />
       <Route path="/events" component={EventsPage} />
@@ -37,9 +52,9 @@ function Router() {
       <Route path="/checkout/:merchantUid" component={CheckoutPage} />
       <Route path="/ticket-status/:merchantUid" component={TicketStatusPage} />
       <Route path="/tickets/lookup" component={TicketLookupPage} />
-      <Route path="/my-tickets" component={MyTicketsPage} />
       <Route path="/ticket/:code" component={TicketViewPage} />
       <Route path="/scanner" component={ScannerPage} />
+      <Route path="/admin/login" component={AdminLoginPage} />
       <Route path="/admin" component={AdminOverview} />
       <Route path="/admin/events" component={AdminEvents} />
       <Route path="/admin/events/:id" component={AdminEventDetail} />

@@ -1,23 +1,13 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  GraduationCap,
-  LogOut,
-  Menu,
-  ScanLine,
-  ShieldCheck,
-  Ticket,
-  X,
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
 const NAV = [
   { href: "/", labelEn: "Home", labelMm: "ပင်မ" },
-  { href: "/categories", labelEn: "Categories", labelMm: "အမျိုးအစား" },
   { href: "/events", labelEn: "Events", labelMm: "ပွဲများ" },
-  { href: "/about", labelEn: "About", labelMm: "အကြောင်း" },
+  { href: "/tickets/lookup", labelEn: "Ticket Status", labelMm: "လက်မှတ် စစ်ရန်" },
+  { href: "/contact", labelEn: "Contact", labelMm: "ဆက်သွယ်ရန်" },
 ];
 
 export function SunmoonLogo({ className }: { className?: string }) {
@@ -50,9 +40,6 @@ export default function SiteLayout({
 }) {
   const [open, setOpen] = useState(false);
   const [location] = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
-  const isAdmin = user?.role === "admin";
-  const isStaff = user?.role === "staff" || isAdmin;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -114,53 +101,6 @@ export default function SiteLayout({
             })}
           </nav>
 
-          <div className="hidden md:flex items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="bg-white">
-              <Link href="/tickets/lookup">
-                <Ticket className="h-4 w-4" />
-                Find Tickets
-              </Link>
-            </Button>
-            {isStaff && (
-              <Button asChild variant="outline" size="sm" className="bg-white">
-                <Link href="/scanner">
-                  <ScanLine className="h-4 w-4" />
-                  Scanner
-                </Link>
-              </Button>
-            )}
-            {isAdmin && (
-              <Button asChild variant="outline" size="sm" className="bg-white">
-                <Link href="/admin">
-                  <ShieldCheck className="h-4 w-4" />
-                  Admin
-                </Link>
-              </Button>
-            )}
-            {isAuthenticated ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => logout()}
-                className="text-foreground/70"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </Button>
-            ) : (
-              <Button
-                asChild
-                size="sm"
-                className="bg-[var(--sunmoon-navy)] hover:bg-[var(--sunmoon-navy-deep)]"
-              >
-                <Link href="/signin">
-                  <GraduationCap className="h-4 w-4" />
-                  Admin sign in
-                </Link>
-              </Button>
-            )}
-          </div>
-
           <button
             type="button"
             aria-label="Toggle menu"
@@ -188,50 +128,6 @@ export default function SiteLayout({
                   </span>
                 </Link>
               ))}
-              <div className="h-px bg-border my-2" />
-              <Link
-                href="/tickets/lookup"
-                onClick={() => setOpen(false)}
-                className="px-3 py-2.5 rounded-md text-sm font-medium hover:bg-secondary flex items-center gap-2"
-              >
-                <Ticket className="h-4 w-4" /> Find Tickets
-              </Link>
-              {isStaff && (
-                <Link
-                  href="/scanner"
-                  onClick={() => setOpen(false)}
-                  className="px-3 py-2.5 rounded-md text-sm font-medium hover:bg-secondary flex items-center gap-2"
-                >
-                  <ScanLine className="h-4 w-4" /> Scanner
-                </Link>
-              )}
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  onClick={() => setOpen(false)}
-                  className="px-3 py-2.5 rounded-md text-sm font-medium hover:bg-secondary flex items-center gap-2"
-                >
-                  <ShieldCheck className="h-4 w-4" /> Admin Dashboard
-                </Link>
-              )}
-              {isAuthenticated ? (
-                <button
-                  onClick={() => {
-                    logout();
-                    setOpen(false);
-                  }}
-                  className="px-3 py-2.5 rounded-md text-sm font-medium text-left hover:bg-secondary flex items-center gap-2"
-                >
-                  <LogOut className="h-4 w-4" /> Sign out
-                </button>
-              ) : (
-                <Link
-                  href="/signin"
-                  className="px-3 py-2.5 rounded-md text-sm font-medium bg-[var(--sunmoon-navy)] text-white flex items-center gap-2"
-                >
-                  <GraduationCap className="h-4 w-4" /> Admin sign in
-                </Link>
-              )}
             </div>
           </div>
         )}
@@ -275,14 +171,6 @@ export default function SiteLayout({
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="/scanner"
-                  className="hover:text-white transition flex items-center gap-1.5"
-                >
-                  <Ticket className="h-3.5 w-3.5" /> Staff scanner
-                </Link>
-              </li>
             </ul>
           </div>
           <div>

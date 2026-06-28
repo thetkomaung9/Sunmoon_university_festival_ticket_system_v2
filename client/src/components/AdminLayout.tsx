@@ -51,7 +51,7 @@ export default function AdminLayout({
             Admin sign-in required
           </h1>
           <Button asChild className="mt-5 w-full bg-[var(--sunmoon-navy)]">
-            <Link href="/signin">Sign in</Link>
+            <Link href="/admin/login">Sign in</Link>
           </Button>
         </div>
       </div>
